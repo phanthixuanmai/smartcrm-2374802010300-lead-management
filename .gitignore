@@ -3,6 +3,7 @@
 
 # Dependencies & build
 node_modules/
+.tsupgrader/
 bin/
 obj/
 target/
