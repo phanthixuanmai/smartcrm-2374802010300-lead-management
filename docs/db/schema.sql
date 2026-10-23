@@ -61,3 +61,25 @@ VALUES
   ('PART-002', 'Pin Samsung A52', 'cái', 'Pin thay thế Samsung Galaxy A52'),
   ('PART-003', 'Cáp sạc USB-C', 'cái', 'Cáp sạc USB-C dùng cho điện thoại')
 ON DUPLICATE KEY UPDATE part_code = part_code;
+
+INSERT INTO warranty_ticket (ticket_code, status)
+VALUES
+  ('BH-2026-001', 'OPEN'),
+  ('BH-2026-002', 'OPEN')
+ON DUPLICATE KEY UPDATE ticket_code = ticket_code;
+
+INSERT INTO inventory (part_id, center_code, quantity, min_quantity)
+SELECT part_id, 'MEKONG-01',
+  CASE part_code
+    WHEN 'PART-001' THEN 5
+    WHEN 'PART-002' THEN 8
+    ELSE 12
+  END,
+  CASE part_code
+    WHEN 'PART-001' THEN 2
+    WHEN 'PART-002' THEN 2
+    ELSE 3
+  END
+FROM part
+WHERE part_code IN ('PART-001', 'PART-002', 'PART-003')
+ON DUPLICATE KEY UPDATE quantity = inventory.quantity;

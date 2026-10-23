@@ -125,3 +125,36 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
   đồng API nhập/xuất kho.
 - **Trạng thái:** Ghi nhận làm đầu việc BT2; chưa xuất ảnh hoặc triển khai API
   nhập/xuất kho trong phạm vi Part CRUD hiện tại.
+
+## Phạm vi Sprint 2 (Workshop buổi 10)
+
+- **Đã triển khai trong source:** API tồn kho và lịch sử giao dịch; nhập/xuất
+  trong một MySQL transaction; xuất kho cần phiếu bảo hành đang mở; frontend
+  riêng ba màn hình gọi API qua module client chung; trạng thái tải/rỗng/lỗi và
+  retry; unit/API tests.
+- **Luồng UC03 đã chạy trên MySQL thật:**
+  1. Đọc tồn `PART-001` tại `MEKONG-01`: 5 cái.
+  2. Đọc danh sách phiếu bảo hành đang mở: chọn `BH-2026-002`.
+  3. Gửi `OUT`, số lượng 2, người thực hiện `workshop-e2e`, gắn phiếu trên:
+     API trả `201`, tồn mới 3.
+  4. Đọc lịch sử giao dịch: có giao dịch OUT 2 gắn đúng `BH-2026-002`.
+  5. Thử xuất thêm 4 khi tồn là 3: API trả `409`; đọc lại tồn vẫn là 3.
+  6. Ảnh kết quả luồng lưu tại `docs/e2e-xuat-kho.png`.
+- **Phân loại lỗi ở các bước tích hợp:** Dữ liệu thiếu/sai định dạng (quantity,
+  ticketId, loại giao dịch) là lỗi hợp đồng API (`400`); ticket không còn mở là
+  lỗi tham chiếu (`404`); xuất vượt tồn là lỗi quy tắc nghiệp vụ (`409`). Lỗi
+  vượt tồn được rollback và không làm thay đổi số lượng hiện có.
+- **Đã xác minh:** `npm run db:init` báo 5 bảng, 3 linh kiện, 3 dòng tồn và 2
+  phiếu bảo hành; `npm test` đạt 16/16; runtime validation đạt 6/6; audit
+  dependency không phát hiện lỗ hổng; frontend riêng tại cổng 5173 vẫn hiển thị
+  trạng thái lỗi và nút thử lại khi API cổng 3000 tắt.
+- **Chưa hoàn tất:** Ảnh terminal server/database và ảnh kết quả test chưa có;
+  chưa thử clone repo sạch và chưa có ghi nhận peer review. Chỉ đánh dấu
+  README sau khi các bước này có bằng chứng.
+- **Hoãn:** Màn hình thứ tư trở đi, đăng nhập/phân quyền thật, tự động hóa chụp
+  ảnh và peer review trong lớp. Workshop cho phép cắt giao diện bổ sung; xác
+  thực quyền cần được triển khai cùng module người dùng thay vì giả lập trong
+  module kho.
+- **Lý do:** Ưu tiên luồng tồn kho tối thiểu với ba màn hình và bảo đảm giao
+  dịch xuất gắn phiếu bảo hành được kiểm tra và ghi nhận nguyên tử. Không đánh
+  dấu các kiểm thử hoặc ảnh chưa thực hiện.
