@@ -30,3 +30,19 @@ Lịch sử giao dịch; US07. Query: `from`, `to`, `type`, `page`, `pageSize`. 
 - Cảnh báo tồn thấp được tạo sau cập nhật giao dịch/thiết lập ngưỡng khi `quantity < minQuantity` → FR6 → US06 → UC05.
 - `GET .../transactions` → FR7 → US07 → UC06.
 - `PATCH /parts/{partId}` (đề xuất tương tự) → FR8 → US08 → UC07.
+
+## API danh mục linh kiện (đã triển khai)
+Base path: `/api/parts`. Các trường JSON dùng tên cột `part_id`, `part_code`,
+`name`, `unit`, `description` và `is_active`.
+Persistence sử dụng MySQL 8+, InnoDB và placeholder tham số `?`.
+
+| Method | Endpoint | Thành công | Lỗi chính |
+|---|---|---|---|
+| GET | `/api/parts` | `200` với danh sách linh kiện (bao gồm `PART-001`–`PART-003` sau seed) | `500` lỗi máy chủ |
+| GET | `/api/parts/{id}` | `200` với một linh kiện | `400` id sai định dạng; `404` không tồn tại |
+| POST | `/api/parts` | `201` với linh kiện vừa tạo | `400` body sai; `409` trùng `part_code` |
+| PUT | `/api/parts/{id}` | `200` với linh kiện cập nhật | `400` dữ liệu/id sai; `404` không tồn tại; `409` trùng mã |
+| DELETE | `/api/parts/{id}` | `204` không có response body | `400` id sai; `404` không tồn tại; `409` đang được tham chiếu |
+
+Body POST/PUT cần có `part_code`, `name`, `unit`; `description` và `is_active`
+là tùy chọn. `part_code`, `name`, `unit` phải là chuỗi không rỗng.
