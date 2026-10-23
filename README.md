@@ -180,5 +180,5 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 
 Ghi từng feedback nguyên văn của giảng viên, quyết định SỬA/GIỮ, lý do và phần
 thiết kế bị ảnh hưởng tại [`docs/thay-doi-thiet-ke.md`](docs/thay-doi-thiet-ke.md).
-Các hạng mục chưa hoàn tất hoặc được hoãn trong Sprint 2 được ghi ở cùng tài
-liệu để không nhầm lẫn với các bước đã kiểm thử.
+Tổng kết công việc, kiểm chứng UC03, ảnh đã có và các việc còn chờ trong workshop
+được ghi tại [`docs/workshop-buoi-10.md`](docs/workshop-buoi-10.md).

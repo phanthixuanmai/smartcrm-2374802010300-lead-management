@@ -110,8 +110,9 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
 - **Lý do:** README đã được bổ sung hướng dẫn project; lịch sử commit cần mô tả
   đúng thay đổi để dễ theo dõi và đánh giá.
 - **Phần thiết kế bị ảnh hưởng:** README và lịch sử phiên bản source.
-- **Trạng thái:** README đã có nội dung. Commit chưa thực hiện vì thư mục hiện
-  chưa phải Git repository và chưa được yêu cầu khởi tạo repository.
+- **Trạng thái:** README đã có hướng dẫn cài đặt, khởi tạo database, chạy backend
+  và frontend, API Sprint 2 cùng checklist. Các thay đổi đã được commit và push
+  lên GitHub; nhánh `main` có 16 commit và `.env` không được theo dõi.
 
 ### 10. Gợi ý cho BT2
 
@@ -151,6 +152,8 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
 - **Clone sạch:** Clone mới từ GitHub, cài dependency, init MySQL, chạy 16/16
   tests, khởi động cả API và frontend, rồi xác nhận giao diện hiển thị ba dòng
   tồn kho từ API thật. Sau khi kiểm tra, clone tạm đã được dọn.
+- **Bảng ghi nhận workshop:** Checklist và tóm tắt những phần đã làm, bằng
+  chứng, và phần còn chờ được ghi tại `docs/workshop-buoi-10.md`.
 - **Chưa hoàn tất:** Ảnh terminal server/database và ảnh kết quả test chưa có;
   peer review cần bạn cùng lớp thực hiện và ghi nhận trong issue.
 - **Hoãn:** Màn hình thứ tư trở đi, đăng nhập/phân quyền thật, tự động hóa chụp
