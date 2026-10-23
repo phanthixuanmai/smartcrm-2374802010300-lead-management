@@ -29,7 +29,7 @@ async function initializeDatabase() {
     for (const statement of statements) {
       await pool.query(statement);
     }
-    console.log(`MySQL database "${databaseName}" initialized (5 tables, 3 seed parts)`);
+    console.log(`MySQL database "${databaseName}" initialized (5 tables, 3 parts, 3 inventory rows, 2 warranty tickets)`);
   } catch (error) {
     console.error('MySQL database initialization failed:', error);
     process.exitCode = 1;

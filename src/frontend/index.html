@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b1220">
+    <title>Mekong Parts · SmartCRM</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#inventory" aria-label="SmartCRM trang chủ">
+          <span class="brand-mark">M</span>
+          <span><strong>MEKONG</strong><small>PARTS MANAGEMENT</small></span>
+        </a>
+        <p class="nav-label">WORKSPACE</p>
+        <nav class="navigation" aria-label="Điều hướng chính">
+          <a class="nav-link active" href="#inventory"><span>▦</span>Tổng quan kho</a>
+          <a class="nav-link" href="#inventory"><span>◫</span>Linh kiện</a>
+          <a class="nav-link" href="#inventory"><span>↕</span>Giao dịch kho</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="center-card"><span class="status-dot"></span><span>Trung tâm Mekong<small>MEKONG-01 · Đang hoạt động</small></span></div>
+          <span class="sidebar-caption">SMARTCRM · SPRINT 2</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">KHO LINH KIỆN THAY THẾ</p>
+            <h1>Quản lý kho</h1>
+          </div>
+          <div class="user-chip"><span class="avatar">KT</span><span>Kỹ thuật viên<small>Trung tâm Mekong</small></span><span class="chevron">⌄</span></div>
+        </header>
+        <div id="app" aria-live="polite"></div>
+        <footer>SmartCRM · Dữ liệu cập nhật trực tiếp từ MySQL</footer>
+      </main>
+    </div>
+  </body>
+</html>

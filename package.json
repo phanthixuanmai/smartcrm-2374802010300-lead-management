@@ -7,12 +7,17 @@
   "scripts": {
     "dev": "node --watch src/backend/server.js",
     "start": "node src/backend/server.js",
+    "dev:frontend": "node src/frontend/server.js",
     "db:init": "node src/backend/scripts/init-db.js",
-    "test": "node --test tests/parts.test.js"
+    "test": "jest --runInBand"
   },
   "dependencies": {
+    "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mysql2": "^3.14.0"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2"
   }
 }
