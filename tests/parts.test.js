@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { after, before, test } = require('node:test');
+const { afterAll, beforeAll, expect, test } = require('@jest/globals');
 const { createApp } = require('../src/backend/app');
 
 const parts = [
@@ -32,7 +32,7 @@ const parts = [
 let server;
 let baseUrl;
 
-before(async () => {
+beforeAll(async () => {
   const db = {
     async execute(sql, values = []) {
       if (sql.includes('FROM part') && sql.includes('ORDER BY part_id')) {
@@ -104,7 +104,7 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(async () => {
+afterAll(async () => {
   await new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
@@ -115,7 +115,7 @@ test('GET /api/parts returns the parts list', async () => {
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.length, 3);
-  assert.deepEqual(result.map((part) => part.part_code), ['PART-001', 'PART-002', 'PART-003']);
+  expect(result.map((part) => part.part_code)).toEqual(['PART-001', 'PART-002', 'PART-003']);
 });
 
 test('GET /api/parts/:id returns a part or 404', async () => {
