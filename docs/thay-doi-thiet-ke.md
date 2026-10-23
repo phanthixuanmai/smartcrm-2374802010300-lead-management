@@ -148,9 +148,11 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
   phiếu bảo hành; `npm test` đạt 16/16; runtime validation đạt 6/6; audit
   dependency không phát hiện lỗ hổng; frontend riêng tại cổng 5173 vẫn hiển thị
   trạng thái lỗi và nút thử lại khi API cổng 3000 tắt.
+- **Clone sạch:** Clone mới từ GitHub, cài dependency, init MySQL, chạy 16/16
+  tests, khởi động cả API và frontend, rồi xác nhận giao diện hiển thị ba dòng
+  tồn kho từ API thật. Sau khi kiểm tra, clone tạm đã được dọn.
 - **Chưa hoàn tất:** Ảnh terminal server/database và ảnh kết quả test chưa có;
-  chưa thử clone repo sạch và chưa có ghi nhận peer review. Chỉ đánh dấu
-  README sau khi các bước này có bằng chứng.
+  peer review cần bạn cùng lớp thực hiện và ghi nhận trong issue.
 - **Hoãn:** Màn hình thứ tư trở đi, đăng nhập/phân quyền thật, tự động hóa chụp
   ảnh và peer review trong lớp. Workshop cho phép cắt giao diện bổ sung; xác
   thực quyền cần được triển khai cùng module người dùng thay vì giả lập trong

@@ -173,7 +173,8 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 - [x] Có ít nhất 5 unit test và test ngoại lệ/biên; `npm test` đạt 16/16
 - [x] Giao diện có trạng thái tải, rỗng, lỗi và nút thử lại
 - [x] Đã hoàn thành hướng dẫn dựng hệ thống ở mục 3
-- [ ] Đã clone vào thư mục mới và chạy theo README; peer review đã ghi nhận
+- [x] Clone repo mới từ GitHub; cài dependency, init DB, test và chạy thử API/frontend đều thành công
+- [ ] Peer review từ bạn cùng lớp và 3 dòng ghi nhận trong issue
 
 ## 8. Điều chỉnh thiết kế BT1 và phạm vi Sprint 2
 
