@@ -172,7 +172,7 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 - [x] Database connection (`npm run db:init`, đủ 5 bảng; server báo kết nối thành công)
 - [x] Part CRUD (GET, POST, GET by id, PUT, DELETE; đã kiểm thử với MySQL thật)
 - [x] API testing (POST trùng `part_code` trả `409`; đã kiểm thử với MySQL thật)
-- [ ] Chạy lại `npm run db:init` hai lần trên MySQL đang hoạt động; xác nhận không lỗi và không nhân đôi dữ liệu
+- [x] Chạy `npm run db:init` hai lần trên MySQL 8.4.9 cô lập; vẫn có 3 linh kiện, 3 dòng tồn kho và 2 phiếu
 - [ ] Screenshots trong `docs/`:
   - [ ] `server-running.png`
   - [ ] `db-connected.png`
