@@ -187,7 +187,7 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 - [x] Có ít nhất 5 unit test và test ngoại lệ/biên; `npm test` đạt 20/20
 - [x] Giao diện có trạng thái tải, rỗng, lỗi và nút thử lại
 - [x] Đã hoàn thành hướng dẫn dựng hệ thống ở mục 3
-- [ ] Clone sạch commit nộp vào thư mục mới; cài dependency và chạy `npm test`
+- [x] Clone sạch commit nộp từ GitHub vào thư mục mới; `npm ci` và `npm test` đạt 20/20
 - [ ] Peer review từ bạn cùng lớp và 3 dòng ghi nhận trong issue
 
 ## 8. Điều chỉnh thiết kế BT1 và phạm vi Sprint 2
