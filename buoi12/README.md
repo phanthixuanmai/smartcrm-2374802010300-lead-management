@@ -29,11 +29,18 @@
 
 - [ ] Mô tả CRUD linh kiện và phiếu bảo hành.
 - [ ] Mô tả giao dịch nhập/xuất kho, kiểm tra số lượng và liên kết phiếu bảo hành.
-- [ ] Ảnh chụp chạy thật: API/backend hoạt động.
-  - Gợi ý: `images/server-running.png` và `images/db-connected.png`.
+- [x] Ảnh chụp chạy thật: API/backend hoạt động.
+  - API/backend trả dữ liệu thật: [server-running.png](images/server-running.png).
+  - Giao diện đọc dữ liệu từ MySQL: [db-connected.png](images/db-connected.png).
+- [x] Môi trường và dữ liệu lúc chụp (31/10/2026):
+  - Node.js 18.20.7, npm 10.8.2, MySQL Community Server 8.4.9.
+  - Backend tại `http://127.0.0.1:3000`, frontend tại `http://127.0.0.1:5173`, MySQL cô lập tại `127.0.0.1:13307`.
+  - Backend log xác nhận `MySQL database connected` và `Server running... port 3000`; API `GET /api/parts` trả HTTP 200.
+  - Dữ liệu seed đọc trực tiếp qua API: `PART-001` Màn hình iPhone 11, `PART-002` Pin Samsung A52, `PART-003` Cáp sạc USB-C. Giao diện hiển thị 3 linh kiện, tổng tồn 29 đơn vị.
+  - Ảnh được chụp bằng Chrome headless mở trực tiếp các URL đang chạy; không dựng dữ liệu hay mock giao diện.
 - [ ] Ảnh chụp luồng chính end-to-end.
   - Có thể dùng: [luồng xuất kho UC03](../docs/e2e-xuat-kho.png).
-- [ ] Ghi rõ dữ liệu/môi trường dùng để chụp; không dùng ảnh minh họa thay cho kết quả chạy thật.
+- [x] Ghi rõ dữ liệu/môi trường dùng để chụp; ảnh là bằng chứng từ các URL đang chạy, không phải ảnh minh họa.
 
 ## Mục 4. Bộ kiểm thử + ẢNH CHỤP test PASS
 
