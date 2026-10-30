@@ -2,6 +2,15 @@ const express = require('express');
 const { createTransactionPlan, InventoryError } = require('../services/inventory');
 
 const MAX_ID = 18446744073709551615n;
+const INVENTORY_ERROR_STATUS = {
+  INVALID_TRANSACTION_TYPE: 400,
+  INVALID_QUANTITY: 400,
+  INVALID_ACTOR: 400,
+  MISSING_TICKET: 400,
+  INVALID_TICKET_ID: 400,
+  INSUFFICIENT_STOCK: 409,
+  QUANTITY_LIMIT_EXCEEDED: 409
+};
 
 function isValidId(id) {
   return id.length <= 20 && /^[1-9]\d*$/.test(id) && BigInt(id) <= MAX_ID;
@@ -188,7 +197,10 @@ function createInventoryRouter() {
         }
       }
       if (error instanceof InventoryError) {
-        return res.status(error.statusCode).json({ error: error.message });
+        const statusCode = INVENTORY_ERROR_STATUS[error.code];
+        if (statusCode) {
+          return res.status(statusCode).json({ error: error.message });
+        }
       }
       return next(error);
     } finally {

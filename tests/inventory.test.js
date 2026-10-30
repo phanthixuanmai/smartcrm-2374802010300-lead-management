@@ -1,5 +1,31 @@
-const { describe, expect, test } = require('@jest/globals');
+const { afterAll, beforeAll, describe, expect, test } = require('@jest/globals');
+const { createApp } = require('../src/backend/app');
 const { InventoryError, createTransactionPlan } = require('../src/backend/services/inventory');
+
+let server;
+let baseUrl;
+
+beforeAll(async () => {
+  const connection = {
+    async beginTransaction() {},
+    async execute() {
+      return [[{ inventory_id: '1', quantity: 5 }], []];
+    },
+    async rollback() {},
+    release() {}
+  };
+  const db = { async getConnection() { return connection; } };
+
+  server = createApp(db).listen(0);
+  await new Promise((resolve) => server.once('listening', resolve));
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+afterAll(async () => {
+  await new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+});
 
 describe('createTransactionPlan', () => {
   test('withdraws stock and associates an open-ticket id', () => {
@@ -15,6 +41,35 @@ describe('createTransactionPlan', () => {
       ticketId: '1',
       createdBy: 'Technician',
       newStock: 3
+    });
+  });
+
+  describe('POST /api/inventory/:id/transactions', () => {
+    test('maps invalid domain input to HTTP 400', async () => {
+      const response = await fetch(`${baseUrl}/api/inventory/1/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'IN', quantity: 0, createdBy: 'Technician' })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: 'quantity must be a positive integer' });
+    });
+
+    test('maps insufficient stock to HTTP 409', async () => {
+      const response = await fetch(`${baseUrl}/api/inventory/1/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'OUT',
+          quantity: 6,
+          ticketId: '1',
+          createdBy: 'Technician'
+        })
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ error: 'Insufficient stock for this withdrawal' });
     });
   });
 
@@ -46,14 +101,14 @@ describe('createTransactionPlan', () => {
     })).toThrow(InventoryError);
   });
 
-  test('rejects withdrawing more than available stock with HTTP 409', () => {
+  test('rejects withdrawing more than available stock', () => {
     expect(() => createTransactionPlan({
       type: 'OUT',
       quantity: 6,
       ticketId: 1,
       createdBy: 'Technician',
       currentStock: 5
-    })).toThrow(expect.objectContaining({ statusCode: 409 }));
+    })).toThrow(expect.objectContaining({ code: 'INSUFFICIENT_STOCK' }));
   });
 
   test('requires a ticket for stock withdrawal', () => {
@@ -62,7 +117,7 @@ describe('createTransactionPlan', () => {
       quantity: 1,
       createdBy: 'Technician',
       currentStock: 5
-    })).toThrow(expect.objectContaining({ statusCode: 400 }));
+    })).toThrow(expect.objectContaining({ code: 'MISSING_TICKET' }));
   });
 
   test('rejects missing actor and unsupported transaction type', () => {

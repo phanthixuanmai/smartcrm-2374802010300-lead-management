@@ -46,3 +46,20 @@ Persistence sử dụng MySQL 8+, InnoDB và placeholder tham số `?`.
 
 Body POST/PUT cần có `part_code`, `name`, `unit`; `description` và `is_active`
 là tùy chọn. `part_code`, `name`, `unit` phải là chuỗi không rỗng.
+
+## API phiếu bảo hành (đã triển khai)
+Base path: `/api/warranty-tickets`. Trạng thái hợp lệ: `OPEN`, `CLOSED`,
+`CANCELLED`. `status` trong query GET không phân biệt chữ hoa/thường.
+
+| Method | Endpoint | Thành công | Lỗi chính |
+|---|---|---|---|
+| GET | `/api/warranty-tickets?status=OPEN` | `200` với danh sách phiếu; bỏ `status` để lấy tất cả | `400` trạng thái sai |
+| GET | `/api/warranty-tickets/{id}` | `200` với một phiếu | `400` id sai định dạng; `404` không tồn tại |
+| POST | `/api/warranty-tickets` | `201`; `status` mặc định `OPEN` | `400` dữ liệu/trạng thái sai; `409` trùng mã |
+| PUT | `/api/warranty-tickets/{id}` | `200` với phiếu cập nhật | `400` id/dữ liệu sai; `404` không tồn tại; `409` trùng mã |
+| DELETE | `/api/warranty-tickets/{id}` | `204` không có response body | `400` id sai; `404` không tồn tại; `409` đang được giao dịch kho tham chiếu |
+
+Body POST/PUT:
+```json
+{"ticket_code":"BH-2026-003","status":"OPEN"}
+```

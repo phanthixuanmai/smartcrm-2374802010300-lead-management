@@ -17,7 +17,7 @@ Phiên bản ghi nhận trên máy thực hiện cập nhật:
 |---|---|
 | Node.js | 18.20.7 |
 | npm | 10.8.2 |
-| MySQL | 8.4.9 (server chạy trên máy này) |
+| MySQL | 8.4.9 (đã dùng trong lần kiểm thử trước; dịch vụ không khả dụng trong phiên xác nhận hiện tại) |
 | Postman | Chưa xác minh trên máy này |
 | Git | 2.49.0.windows.1 |
 
@@ -133,7 +133,20 @@ hiển thị lỗi kết nối có hướng dẫn và nút thử lại. Ảnh gi
 | GET | `/api/inventory/:id` | Chi tiết một dòng tồn |
 | GET | `/api/inventory/:id/transactions` | Tối đa 100 giao dịch gần nhất và phiếu liên quan |
 | POST | `/api/inventory/:id/transactions` | Nhập `IN` hoặc xuất `OUT`; ghi lịch sử và cập nhật tồn trong một transaction |
-| GET | `/api/warranty-tickets?status=OPEN` | Danh sách phiếu bảo hành, lọc phiếu đang mở |
+| GET | `/api/warranty-tickets?status=OPEN` | Danh sách phiếu bảo hành; lọc theo `OPEN`, `CLOSED` hoặc `CANCELLED` |
+| GET | `/api/warranty-tickets/:id` | Chi tiết phiếu bảo hành; `404` nếu không tồn tại |
+| POST | `/api/warranty-tickets` | Tạo phiếu; `status` mặc định là `OPEN`, `409` nếu trùng mã |
+| PUT | `/api/warranty-tickets/:id` | Cập nhật mã và trạng thái phiếu |
+| DELETE | `/api/warranty-tickets/:id` | Xóa phiếu; `409` nếu đang được giao dịch kho tham chiếu |
+
+Body cho POST/PUT:
+
+```json
+{
+  "ticket_code": "BH-2026-003",
+  "status": "OPEN"
+}
+```
 
 Ví dụ xuất 2 linh kiện tồn kho cho phiếu bảo hành đang mở:
 
@@ -159,6 +172,7 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 - [x] Database connection (`npm run db:init`, đủ 5 bảng; server báo kết nối thành công)
 - [x] Part CRUD (GET, POST, GET by id, PUT, DELETE; đã kiểm thử với MySQL thật)
 - [x] API testing (POST trùng `part_code` trả `409`; đã kiểm thử với MySQL thật)
+- [ ] Chạy lại `npm run db:init` hai lần trên MySQL đang hoạt động; xác nhận không lỗi và không nhân đôi dữ liệu
 - [ ] Screenshots trong `docs/`:
   - [ ] `server-running.png`
   - [ ] `db-connected.png`
@@ -170,10 +184,10 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
   - [x] Backend tắt: `backend-offline-error.png`
 - [x] Sprint 2 đã kiểm thử với MySQL thật, gồm xuất kho gắn phiếu bảo hành và kiểm tra tồn sau giao dịch
 - [ ] Ảnh kết quả `npm test` đã lưu trong `docs/`
-- [x] Có ít nhất 5 unit test và test ngoại lệ/biên; `npm test` đạt 16/16
+- [x] Có ít nhất 5 unit test và test ngoại lệ/biên; `npm test` đạt 20/20
 - [x] Giao diện có trạng thái tải, rỗng, lỗi và nút thử lại
 - [x] Đã hoàn thành hướng dẫn dựng hệ thống ở mục 3
-- [x] Clone repo mới từ GitHub; cài dependency, init DB, test và chạy thử API/frontend đều thành công
+- [ ] Clone sạch commit nộp vào thư mục mới; cài dependency và chạy `npm test`
 - [ ] Peer review từ bạn cùng lớp và 3 dòng ghi nhận trong issue
 
 ## 8. Điều chỉnh thiết kế BT1 và phạm vi Sprint 2
