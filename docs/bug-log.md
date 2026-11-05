@@ -29,3 +29,13 @@
 - **Nguyên nhân:** `hasOpenTicket` dùng SELECT thường nên không giữ row lock đến khi transaction kết thúc.
 - **Cách sửa:** Dùng `SELECT ... FOR UPDATE` để tuần tự hóa việc xác minh phiếu với cập nhật trạng thái đồng thời.
 - **Commit và xác nhận:** `fix(inventory): lock warranty ticket during withdrawal (BUG-02)`; `tests/inventory-ticket-lock.test.js` xác nhận request đóng bị chặn tới khi xuất commit; MySQL integration 12/12 PASS.
+
+## BUG-03 — MEDIUM — Giá linh kiện nhiều hơn hai chữ số thập phân bị làm tròn âm thầm
+
+- **Mã và mức độ:** BUG-03 · MEDIUM — người dùng vẫn tạo được linh kiện nhưng giá được lưu khác input; có thể khắc phục bằng cách nhập giá trong độ chính xác DB hỗ trợ.
+- **Phát hiện bởi:** Thử POST và đọc lại giá trên MySQL test local.
+- **Triệu chứng:** POST `unit_price: 1.239` trả 201 nhưng response/DB chứa `1.24`.
+- **Cách tái lập:** POST `/api/parts` với giá `1.239`, sau đó SELECT `unit_price` theo `part_code`.
+- **Nguyên nhân:** Service chỉ kiểm tra giá không âm; MySQL `DECIMAL(12,2)` tự làm tròn thêm chữ số.
+- **Cách sửa:** Từ chối giá vượt giới hạn `DECIMAL(12,2)` hoặc có hơn hai chữ số thập phân bằng lỗi validation 400.
+- **Commit và xác nhận:** `fix(parts): reject prices MySQL would round (BUG-03)`; `tests/parts-price-precision.test.js` và `tests/parts.test.js` PASS.

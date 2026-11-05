@@ -7,6 +7,7 @@ class PartError extends Error {
 }
 
 const MAX_ID = 18446744073709551615n;
+const MAX_UNIT_PRICE = 9999999999.99;
 const REQUIRED_TEXT_FIELDS = ['part_code', 'name', 'unit'];
 const ALLOWED_FIELDS = [...REQUIRED_TEXT_FIELDS, 'unit_price', 'description', 'is_active'];
 
@@ -34,9 +35,17 @@ function normalizePart(body) {
   if (body.is_active !== undefined && typeof body.is_active !== 'boolean') {
     throw new PartError('INVALID_DATA', 'is_active must be a boolean');
   }
-  if (body.unit_price !== undefined
-    && (typeof body.unit_price !== 'number' || !Number.isFinite(body.unit_price) || body.unit_price < 0)) {
-    throw new PartError('INVALID_DATA', 'unit_price must be a non-negative number');
+  if (body.unit_price !== undefined) {
+    const scaledPrice = body.unit_price * 100;
+    const precisionTolerance = Number.EPSILON * Math.max(1, Math.abs(scaledPrice)) * 4;
+    if (typeof body.unit_price !== 'number' || !Number.isFinite(body.unit_price)
+      || body.unit_price < 0 || body.unit_price > MAX_UNIT_PRICE
+      || Math.abs(scaledPrice - Math.round(scaledPrice)) > precisionTolerance) {
+      throw new PartError(
+        'INVALID_DATA',
+        `unit_price must be between 0 and ${MAX_UNIT_PRICE} with at most 2 decimal places`
+      );
+    }
   }
 
   const unexpectedFields = Object.keys(body).filter((field) => !ALLOWED_FIELDS.includes(field));
