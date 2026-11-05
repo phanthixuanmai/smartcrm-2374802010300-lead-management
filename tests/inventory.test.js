@@ -103,14 +103,16 @@ describe('createTransactionPlan', () => {
     );
   });
 
-  test('allows withdrawing exactly the available stock', () => {
-    expect(createTransactionPlan({
-      type: 'OUT',
-      quantity: 5,
-      ticketId: 1,
-      createdBy: 'Technician',
-      currentStock: 5
-    }).newStock).toBe(0);
+  test('accepts withdrawals just below and exactly at available stock', () => {
+    for (const quantity of [4, 5]) {
+      expect(createTransactionPlan({
+        type: 'OUT',
+        quantity,
+        ticketId: 1,
+        createdBy: 'Technician',
+        currentStock: 5
+      }).newStock).toBe(5 - quantity);
+    }
   });
 
   test('accepts stock receipt', () => {
@@ -120,6 +122,26 @@ describe('createTransactionPlan', () => {
       createdBy: 'Technician',
       currentStock: 5
     })).toMatchObject({ type: 'IN', ticketId: null, newStock: 7 });
+  });
+
+  test('repeats the same transaction plan without mutating its input', () => {
+    const input = Object.freeze({
+      type: 'IN',
+      quantity: 2,
+      createdBy: 'Technician',
+      currentStock: 5
+    });
+
+    const first = createTransactionPlan(input);
+    const second = createTransactionPlan(input);
+
+    expect(second).toEqual(first);
+    expect(input).toEqual({
+      type: 'IN',
+      quantity: 2,
+      createdBy: 'Technician',
+      currentStock: 5
+    });
   });
 
   test.each([0, -1, 1.5, NaN, '2'])('rejects invalid quantity %s', (quantity) => {

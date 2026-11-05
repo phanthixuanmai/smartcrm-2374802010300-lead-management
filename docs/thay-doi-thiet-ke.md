@@ -174,6 +174,32 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
   theo người dùng; A04 chưa áp dụng vì không lưu mật khẩu người dùng trong DB.
   A07 áp dụng cho session cookie; A02 và A05 vẫn phải kiểm tra dù không có
   multi-user.
-- **Kiểm chứng:** Ma trận, kết quả đã chạy và các hạng mục OWASP còn chờ được
-  ghi tại [`docs/test-plan.md`](./test-plan.md). Không ghi các kiểm tra thủ
-  công chưa thực hiện thành PASS.
+- **Kiểm chứng:** Phạm vi test được rút gọn tại [`docs/test-plan.md`](./test-plan.md);
+  ca xác thực/injection đã chạy và các giới hạn còn lại được ghi tại
+  [`docs/test-report.md`](./test-report.md). Không ghi kiểm tra thủ công chưa
+  thực hiện thành PASS.
+
+## Quyết định theo phản hồi BT2
+
+**Nguồn đối chiếu:** Các nhận xét dưới đây được trích từ nội dung BT2 trong yêu
+cầu. Danh sách comment trong workspace và tìm kiếm GitHub issues/PR công khai
+không có phản hồi riêng khác; không thể xác minh nội dung comment riêng tư
+không được chia sẻ ở đây. Gợi ý BT1 “xuất sơ đồ drawio...” ở phần trên được
+giữ tách biệt, không xem là phản hồi BT2.
+
+| Nhận xét | Quyết định | Lý do và dẫn chứng |
+|---|---|---|
+| Express + MySQL | GIỮ | Đúng với kiến trúc hiện tại; không đổi stack trong phạm vi sửa phản hồi. |
+| Quản lý linh kiện và tồn theo kho | GIỮ | Kho gắn trung tâm dịch vụ; đây là cấu trúc nghiệp vụ hiện có, không có phản hồi yêu cầu đổi mô hình. |
+| Nhập/xuất gắn phiếu bảo hành | GIỮ | Xuất kho yêu cầu phiếu đang mở; đã có bằng chứng luồng UC03 tại [`e2e-xuat-kho.png`](./e2e-xuat-kho.png). |
+| Từ chối xuất vượt tồn và dữ liệu sai | GIỮ | Quy tắc vẫn được kiểm tra; bộ test hiện chạy xác nhận lỗi `400`/`409` và rollback trong API test. |
+| CRUD linh kiện và phiếu bảo hành | GIỮ | Các endpoint hiện có được duy trì; phản hồi ghi nhận đây là phần đạt yêu cầu. |
+| API client dùng chung và `renderDataState` | GIỮ | Tiếp tục dùng client chung và ba trạng thái tải/rỗng/lỗi; bổ sung bằng chứng ảnh S4 thay vì viết lại phần đã hoạt động. |
+| “15 kiểm thử” | CẬP NHẬT SỐ LIỆU | 15 là số được phản hồi ghi nhận; lần chạy hiện tại `npm test` có 30 PASS, 2 test MySQL bị skip vì chưa cấu hình DB test. Kết quả và phạm vi được ghi tại [`test-report.md`](./test-report.md). |
+| Ba trạng thái tải/rỗng/lỗi chưa có ảnh chạy thật (S4) | SỬA | Bổ sung ảnh cho cả ba trạng thái tại [`bt2-trang-thai-dang-tai.png`](./bt2-trang-thai-dang-tai.png), [`bt2-trang-thai-rong.png`](./bt2-trang-thai-rong.png) và [`backend-offline-error.png`](./backend-offline-error.png). Ảnh tải dùng API trì hoãn có kiểm soát; giới hạn này được nêu trong report. |
+| Đã có trang đăng nhập | GIỮ, KHÔNG LÀM TRÙNG | Giữ luồng đăng nhập hiện có; không tạo thêm trang. Trang và route đăng nhập có trong [`login.js`](../src/frontend/pages/login.js) và [`app.js`](../src/frontend/app.js). |
+
+Phản hồi về thiếu ảnh là thiếu bằng chứng bàn giao, không phải lỗi nghiệp vụ
+được tái hiện trong lần chạy hiện tại; không ghi thành bug runtime. Kế hoạch rút
+gọn và báo cáo 12 ca được tách tại [`test-plan.md`](./test-plan.md) và
+[`test-report.md`](./test-report.md).

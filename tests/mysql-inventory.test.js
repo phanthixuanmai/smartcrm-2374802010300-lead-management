@@ -1,7 +1,6 @@
-require('dotenv').config();
-
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const mysql = require('mysql2/promise');
 const {
   afterAll,
@@ -60,6 +59,11 @@ async function resetDb() {
   for (const table of tableResetOrder) {
     await db.query(`DELETE FROM \`${table}\``);
   }
+}
+
+async function countRows(table) {
+  const [rows] = await db.query(`SELECT COUNT(*) AS count FROM \`${table}\``);
+  return Number(rows[0].count);
 }
 
 async function seed() {
@@ -153,6 +157,7 @@ integration('MySQL inventory integration', () => {
     fixtureResetStarted = true;
     await resetDb();
     fixture = await seed();
+    console.log(`[SETUP] resetDb + seed: inventory A=${fixture.inventoryA} stock=5; inventory B=${fixture.inventoryB} stock=9; open ticket=${fixture.ticketId}`);
   });
 
   afterAll(async () => {
@@ -173,7 +178,8 @@ integration('MySQL inventory integration', () => {
     }
   });
 
-  test('filters stock by center and persists a ticket-linked withdrawal on only that row', async () => {
+  test('TC-02 happy path: persists ticket-linked stock withdrawal to MySQL', async () => {
+    const beforeTransactions = await countRows('stock_transaction');
     const filtered = await request('/api/inventory?centerCode=IT-CENTER-A');
     expect(filtered.status).toBe(200);
     const filteredBody = await filtered.json();
@@ -185,13 +191,14 @@ integration('MySQL inventory integration', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'OUT',
-        quantity: 2,
+        quantity: 4,
         ticketId: fixture.ticketId,
         createdBy: 'integration-test'
       })
     });
+    const body = await withdrawal.json();
     expect(withdrawal.status).toBe(201);
-    expect((await withdrawal.json()).newStock).toBe(3);
+    expect(body.newStock).toBe(1);
 
     const [stocks] = await db.execute(
       `SELECT inventory_id, center_code, quantity, min_quantity
@@ -199,7 +206,7 @@ integration('MySQL inventory integration', () => {
        ORDER BY center_code`
     );
     expect(stocks).toMatchObject([
-      { center_code: 'IT-CENTER-A', quantity: 3, min_quantity: 3 },
+      { center_code: 'IT-CENTER-A', quantity: 1, min_quantity: 3 },
       { center_code: 'IT-CENTER-B', quantity: 9, min_quantity: 2 }
     ]);
 
@@ -210,13 +217,17 @@ integration('MySQL inventory integration', () => {
     expect(transactions).toHaveLength(1);
     expect(String(transactions[0].inventory_id)).toBe(fixture.inventoryA);
     expect(String(transactions[0].ticket_id)).toBe(fixture.ticketId);
-    expect(transactions[0]).toMatchObject({ transaction_type: 'OUT', quantity: 2 });
+    expect(transactions[0]).toMatchObject({ transaction_type: 'OUT', quantity: 4 });
 
     const updatedInventory = await request(`/api/inventory/${fixture.inventoryA}`);
-    expect((await updatedInventory.json()).low_stock).toBe(true);
+    const updatedBody = await updatedInventory.json();
+    const afterTransactions = await countRows('stock_transaction');
+    expect(updatedBody.low_stock).toBe(1);
+    expect(afterTransactions).toBe(beforeTransactions + 1);
+    console.log(`[RESULT] HTTP ${withdrawal.status}; quantity=4; DB stock=1; transaction count ${beforeTransactions}->${afterTransactions}; low_stock=${updatedBody.low_stock}`);
   });
 
-  test('rejects an over-stock withdrawal without changing MySQL rows', async () => {
+  test('TC-04 upper boundary: rejects one above stock without changing MySQL rows', async () => {
     const [beforeTransactions] = await db.execute(
       'SELECT COUNT(*) AS count FROM stock_transaction'
     );
@@ -244,5 +255,218 @@ integration('MySQL inventory integration', () => {
     );
     expect(stocks[0].quantity).toBe(5);
     expect(afterTransactions[0].count).toBe(beforeTransactions[0].count);
+    console.log(`[RESULT] HTTP ${response.status}; error=Insufficient stock for this withdrawal; DB stock=5; transaction count ${beforeTransactions[0].count}->${afterTransactions[0].count}`);
+  });
+
+  test('TC-01 happy path: creates a part and reads persisted values from MySQL', async () => {
+    const before = await countRows('part');
+    const response = await request('/api/parts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        part_code: 'BT2-PART-VALID',
+        name: 'BT2 integration part',
+        unit: 'piece',
+        unit_price: 12345
+      })
+    });
+    const body = await response.json();
+    const [rows] = await db.execute(
+      'SELECT part_code, name, unit, unit_price FROM part WHERE part_code = ?',
+      ['BT2-PART-VALID']
+    );
+    const after = await countRows('part');
+
+    expect(response.status).toBe(201);
+    expect(body).toMatchObject({ part_code: 'BT2-PART-VALID', name: 'BT2 integration part' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      part_code: body.part_code,
+      name: body.name,
+      unit: body.unit
+    });
+    expect(Number(rows[0].unit_price)).toBe(12345);
+    expect(after).toBe(before + 1);
+    console.log(`[RESULT] HTTP ${response.status}; part=${body.part_code}; DB part count ${before}->${after}; persisted value matches response`);
+  });
+
+  test('TC-03 lower boundary: accepts withdrawal exactly equal to available stock', async () => {
+    const beforeTransactions = await countRows('stock_transaction');
+    const response = await request(`/api/inventory/${fixture.inventoryA}/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'OUT',
+        quantity: 5,
+        ticketId: fixture.ticketId,
+        createdBy: 'integration-test'
+      })
+    });
+    const body = await response.json();
+    const [stocks] = await db.execute('SELECT quantity FROM inventory WHERE inventory_id = ?', [fixture.inventoryA]);
+    const afterTransactions = await countRows('stock_transaction');
+
+    expect(response.status).toBe(201);
+    expect(body.newStock).toBe(0);
+    expect(stocks[0].quantity).toBe(0);
+    expect(afterTransactions).toBe(beforeTransactions + 1);
+    console.log(`[RESULT] HTTP ${response.status}; quantity=5; DB stock=0; transaction count ${beforeTransactions}->${afterTransactions}`);
+  });
+
+  test('TC-05 invalid data: blank required part name returns field-specific 400 without insert', async () => {
+    const before = await countRows('part');
+    const response = await request('/api/parts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ part_code: 'BT2-PART-NONAME', name: '  ', unit: 'piece' })
+    });
+    const body = await response.json();
+    const after = await countRows('part');
+
+    expect(response.status).toBe(400);
+    expect(body.error).toMatch(/name is required/);
+    expect(after).toBe(before);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; DB part count ${before}->${after}`);
+  });
+
+  test('TC-06 invalid id: missing part returns 404 rather than 500', async () => {
+    const before = await countRows('part');
+    const response = await request('/api/parts/999999999');
+    const body = await response.json();
+    const after = await countRows('part');
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe('Part not found');
+    expect(after).toBe(before);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; DB part count ${before}->${after}; not HTTP 500`);
+  });
+
+  test('TC-07 data integrity: duplicate part code returns 409 without extra row', async () => {
+    const before = await countRows('part');
+    const response = await request('/api/parts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        part_code: 'IT-PART-001',
+        name: 'Duplicate integration part',
+        unit: 'piece',
+        unit_price: 100
+      })
+    });
+    const body = await response.json();
+    const after = await countRows('part');
+    const [matches] = await db.execute('SELECT COUNT(*) AS count FROM part WHERE part_code = ?', ['IT-PART-001']);
+
+    expect(response.status).toBe(409);
+    expect(body.error).toMatch(/already exists/);
+    expect(after).toBe(before);
+    expect(Number(matches[0].count)).toBe(1);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; DB part count ${before}->${after}; duplicate-code rows=${matches[0].count}`);
+  });
+
+  test('TC-08 invalid data: zero transaction quantity returns 400 with no side effect', async () => {
+    const beforeTransactions = await countRows('stock_transaction');
+    const response = await request(`/api/inventory/${fixture.inventoryA}/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'IN', quantity: 0, createdBy: 'integration-test' })
+    });
+    const body = await response.json();
+    const afterTransactions = await countRows('stock_transaction');
+    const [stocks] = await db.execute('SELECT quantity FROM inventory WHERE inventory_id = ?', [fixture.inventoryA]);
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('quantity must be a positive integer');
+    expect(afterTransactions).toBe(beforeTransactions);
+    expect(stocks[0].quantity).toBe(5);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; transaction count ${beforeTransactions}->${afterTransactions}; stock=5`);
+  });
+
+  test('TC-09 data integrity: missing warranty ticket does not write transaction', async () => {
+    const beforeTransactions = await countRows('stock_transaction');
+    const response = await request(`/api/inventory/${fixture.inventoryA}/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'OUT',
+        quantity: 1,
+        ticketId: '999999999',
+        createdBy: 'integration-test'
+      })
+    });
+    const body = await response.json();
+    const afterTransactions = await countRows('stock_transaction');
+    const [stocks] = await db.execute('SELECT quantity FROM inventory WHERE inventory_id = ?', [fixture.inventoryA]);
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe('Open warranty ticket not found');
+    expect(afterTransactions).toBe(beforeTransactions);
+    expect(stocks[0].quantity).toBe(5);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; transaction count ${beforeTransactions}->${afterTransactions}; stock=5`);
+  });
+
+  test('TC-10 security: unauthenticated part modification is denied without changing rows', async () => {
+    const before = await countRows('part');
+    const response = await fetch(`${baseUrl}/api/parts/1`, {
+      method: 'DELETE'
+    });
+    const body = await response.json();
+    const after = await countRows('part');
+
+    expect(response.status).toBe(401);
+    expect(after).toBe(before);
+    console.log(`[RESULT] HTTP ${response.status}; error=${body.error}; DB part count ${before}->${after}; cross-user 403 N/A (single shared configured account)`);
+  });
+
+  test('TC-11 data quality: injection-like search stays data and changes no records', async () => {
+    const beforeTransactions = await countRows('stock_transaction');
+    const beforeParts = await countRows('part');
+    const payload = "' OR 1=1 --";
+    const response = await request(`/api/inventory?q=${encodeURIComponent(payload)}`);
+    const body = await response.json();
+    const afterTransactions = await countRows('stock_transaction');
+    const afterParts = await countRows('part');
+
+    expect(response.status).toBe(200);
+    expect(body.items).toHaveLength(0);
+    expect(afterTransactions).toBe(beforeTransactions);
+    expect(afterParts).toBe(beforeParts);
+    console.log(`[RESULT] HTTP ${response.status}; items=${body.items.length}; part count ${beforeParts}->${afterParts}; transaction count ${beforeTransactions}->${afterTransactions}`);
+  });
+
+  test('TC-12 repeatability: migration and seed run twice with stable row counts', async () => {
+    const appEnv = {
+      ...process.env,
+      DB_HOST: testHost,
+      DB_PORT: String(testPort),
+      DB_NAME: databaseName,
+      DB_USER: testUser,
+      DB_PASSWORD: testPassword,
+      DB_CREATE_DATABASE: 'false'
+    };
+    const initScript = path.resolve(__dirname, '../src/backend/scripts/init-db.js');
+    const runInitialization = () => execFileSync(process.execPath, [initScript], {
+      cwd: path.resolve(__dirname, '..'),
+      env: appEnv,
+      encoding: 'utf8',
+      timeout: 60000,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const countImportedRows = async () => ({
+      parts: await countRows('part'),
+      centers: await countRows('service_center'),
+      inventory: await countRows('inventory'),
+      transactions: await countRows('stock_transaction')
+    });
+
+    const firstOutput = runInitialization();
+    const firstCounts = await countImportedRows();
+    const secondOutput = runInitialization();
+    const secondCounts = await countImportedRows();
+
+    expect(firstOutput).toMatch(/initialized/);
+    expect(secondOutput).toMatch(/initialized/);
+    expect(secondCounts).toEqual(firstCounts);
+    console.log(`[RESULT] init-db exit 0 twice; row counts after first=${JSON.stringify(firstCounts)}; after second=${JSON.stringify(secondCounts)}`);
   });
 });

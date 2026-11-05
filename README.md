@@ -102,9 +102,10 @@ Các bước dựng hệ thống từ đầu:
 Unit/API tests dùng mock database nên không cần MySQL Server; kiểm thử nghiệp vụ
 tồn kho bao gồm xuất kho hợp lệ, xuất đúng bằng tồn, xuất vượt tồn, quantity
 không hợp lệ và OUT thiếu phiếu bảo hành.
-Ma trận 12 ca, trạng thái thực chạy và phạm vi OWASP được ghi trong
-[`docs/test-plan.md`](docs/test-plan.md). Request API để chạy bằng VS Code REST
-Client có tại [`tests/smartcrm-api.http`](tests/smartcrm-api.http). Các ca tích
+Test plan rút gọn có tại [`docs/test-plan.md`](docs/test-plan.md); 12 ca cùng
+kết quả chạy thật được ghi trong [`docs/test-report.md`](docs/test-report.md).
+Request API để chạy bằng VS Code REST Client có tại
+[`tests/smartcrm-api.http`](tests/smartcrm-api.http). Các ca tích
 hợp MySQL trong `tests/mysql-inventory.test.js` dùng `resetDb()+seed` và chỉ
 chạy khi `TEST_DB_NAME` trỏ tới database local riêng có hậu tố `_test`, khác
 `DB_NAME`, cùng `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` và

@@ -1,82 +1,61 @@
-# Test Plan và Test Report
+# Kế hoạch kiểm thử BT2
 
-## 1. Mục tiêu, phạm vi và cách dựng dữ liệu
+## 1. Phạm vi và phần chủ ý không kiểm thử
 
-Xác nhận các quy tắc nhập/xuất kho, liên kết phiếu bảo hành, phân biệt lỗi dữ
-liệu `400` với xung đột nghiệp vụ `409`, kiểm tra API Part, truy vấn tồn kho và
-các điểm OWASP được nêu ở mục 3. Bộ chọn gồm 12 ca thuộc năm nhóm: unit service,
-API contract, tích hợp MySQL, kiểm thử OWASP tự động và kiểm thử OWASP thủ công.
+Kiểm tra API `/api/parts` và inventory qua Express với MySQL thật: tạo và đọc
+lại dữ liệu, nhập/xuất kho gắn phiếu bảo hành, tồn kho, lỗi dữ liệu, mã lỗi
+HTTP, xác thực, truy vấn tìm kiếm, tác dụng phụ và tính lặp lại của khởi tạo
+cơ sở dữ liệu. Kiểm tra riêng ba trạng thái giao diện S4 (đang tải, rỗng, lỗi).
 
-Jest fixture mock được dựng bằng mã trong `beforeAll`/test (ví dụ tồn kho 5,
-ticket id 1 và danh sách Part), không đọc dữ liệu sót lại trên máy. Hai ca
-MySQL trong `tests/mysql-inventory.test.js` có `resetDb()+seed` chạy trước mỗi
-ca và cleanup sau suite. Chúng chỉ chạy khi `TEST_DB_NAME` trỏ tới database
-riêng có hậu tố `_test`, khác database cấu hình thường, cùng thông tin
-`TEST_DB_*` riêng và host cục bộ (`localhost`, `127.0.0.1` hoặc `::1`). Nếu
-`TEST_DB_NAME` chưa được cấu hình, Jest đánh dấu ca tích hợp là skipped/BLOCKED;
-không kết nối Railway hay host từ xa.
+Không ghi dữ liệu lên Railway/production; không kiểm tra tải/hiệu năng, nhiều
+vai trò, hay phân quyền sửa dữ liệu giữa hai người dùng. Ứng dụng hiện dùng
+một tài khoản cấu hình dùng chung, không có mô hình sở hữu bản ghi theo user;
+do đó kiểm tra request không đăng nhập trả `401`, còn kiểm tra cross-user `403`
+không áp dụng.
 
-Chạy toàn bộ Jest: `npm test`. Chạy riêng ca xuất vượt tồn:
-`npm test -- --runTestsByPath tests/inventory.test.js --testNamePattern="maps insufficient stock to HTTP 409"`.
-Chạy tích hợp MySQL bằng database test đã tạo riêng, đặt `TEST_DB_HOST`,
-`TEST_DB_PORT`, `TEST_DB_USER`, `TEST_DB_PASSWORD` cùng `TEST_DB_NAME`, rồi chạy
-`npm test -- --runTestsByPath tests/mysql-inventory.test.js`.
-Các request API có thể chạy từ `tests/smartcrm-api.http` sau khi server, đăng
-nhập và dữ liệu seed đã sẵn sàng.
+## 2. Loại test, số lượng và cách chọn dữ liệu
 
-## 2. Danh sách ca và báo cáo
+- **38 test unit/service/API HTTP** với DB mock (9 suite).
+- **12 ca tích hợp API/MySQL thật** (1 suite), mỗi ca chạy độc lập.
+  `beforeEach` thực hiện `resetDb + seed`; kiểm tra kết quả API đồng thời truy
+  vấn lại dữ liệu và số bản ghi trong schema test local `smartcrm_bt2_test`.
+- **1 test cạnh tranh tích hợp MySQL** kiểm tra transaction xuất đồng thời
+  với đóng warranty ticket (1 suite).
+- Cả hai tầng chạy cùng trong `npm test -- --runInBand` khi `TEST_DB_*` được
+  cấu hình: 51 test, 11 suite.
+- Phân nhóm: 3 luồng hợp lệ/ranh giới; 3 ca biên tồn; 4 ca dữ liệu sai/ID
+  không tồn tại; 3 ca chất lượng dữ liệu/bảo mật (một số ca biên đồng thời là
+  luồng hợp lệ); 1 ca tái lập migration/seed.
+- Chọn phân vùng hợp lệ/không hợp lệ; lượng xuất `4`, `5`, `6` khi tồn là `5`
+  (thấp hơn đúng 1, bằng ngưỡng, vượt đúng 1); quantity `0`; tên bắt buộc
+  trống; part/ticket ID không tồn tại; mã part trùng; chuỗi injection-like
+  trong tìm kiếm; request thiếu phiên.
+- **3 ảnh giao diện S4** bổ trợ, mỗi ảnh cho một trạng thái loading/empty/error;
+  không tính vào 12 ca API.
 
-Ưu tiên: **Cao** = quy tắc nghiệp vụ, bảo mật hoặc lỗi dữ liệu; **Vừa** = hành
-vi thành phần hỗ trợ. Cột thực tế chỉ được điền cho lần chạy đã thực hiện.
+## 3. Tiêu chí thành công đo được
 
-| Mã | Tiền điều kiện | Các bước | Dữ liệu thử | Kết quả mong đợi | Ưu tiên | Kết quả thực tế | PASS/FAIL |
-|---|---|---|---|---|---|---|---|
-| TC-01 | Service fixture dựng trong code; tồn = 5 | Gọi `createTransactionPlan` với `IN` | Nhập 2 | Kế hoạch có `newStock = 7` | Cao | `npm test`: tính được tồn mới 7 | PASS |
-| TC-02 | Service fixture dựng trong code; tồn = 5; ticket đang mở | Gọi `createTransactionPlan` với `OUT` | Xuất 5, `ticketId=1` | Thành công, `newStock = 0`, giữ `ticketId` | Cao | `npm test`: xuất đúng bằng tồn, tồn mới 0 | PASS |
-| TC-03 | Service fixture dựng trong code; tồn = 5 | Gọi `createTransactionPlan` với `OUT` | Xuất 6, `ticketId=1` | Từ chối với `INSUFFICIENT_STOCK`; không tạo kế hoạch giảm tồn | Cao | `npm test`: domain từ chối vượt tồn | PASS |
-| TC-04 | Service fixture dựng trong code; tồn = 5 | Gọi `createTransactionPlan` với `OUT` | Xuất 1, thiếu `ticketId` | Từ chối với `MISSING_TICKET` | Cao | `npm test`: từ chối thiếu ticket | PASS |
-| TC-05 | Service fixture dựng trong code | Gọi `createTransactionPlan` với quantity không hợp lệ | `quantity=0` | Từ chối `INVALID_QUANTITY` | Cao | `npm test`: quantity 0 bị từ chối | PASS |
-| TC-06 | Service fixture dựng trong code | Gọi `createTransactionPlan` với actor rỗng và loại giao dịch không hỗ trợ | `createdBy=""`; `type=INVALID` | Từ chối với lỗi input domain; không tạo giao dịch | Cao | `npm test`: actor rỗng và type không hỗ trợ đều bị từ chối | PASS |
-| TC-07 | API server test và mock Part repo | Gửi `POST /api/parts` thiếu tên | `part_code=PART-005`, thiếu `name` | `400`; body nêu rõ `name is required` | Cao | `npm test`: `400`, lỗi chỉ rõ `name` | PASS |
-| TC-08 | API server test; tồn fixture = 5 | Gửi `POST /api/inventory/1/transactions` | `IN`, `quantity=0` | `400`; lỗi nêu `quantity must be a positive integer` | Cao | `npm test`: `400`, thông báo quantity chính xác | PASS |
-| TC-09 | API server test; tồn fixture = 5; ticket id 1; DB mock ghi nhận câu lệnh | Gửi `POST /api/inventory/1/transactions` | `OUT`, `quantity=6`, `ticketId=1` | `409` và thông báo thiếu tồn; rollback được gọi, không chạy `UPDATE`/`INSERT` | Cao | Lệnh Jest mục tiêu: HTTP `409`, đúng thông báo, rollback 1 lần, chỉ có `SELECT ... FOR UPDATE` | PASS |
-| TC-10 | `TEST_DB_*` riêng; local MySQL; DB tên hậu tố `_test`; test tự reset/seed hai kho và ticket mở | Lọc theo trung tâm, xuất từ dòng kho đã chọn, rồi đọc lại hai dòng và lịch sử | `centerCode=IT-CENTER-A`; OUT 2 gắn ticket mở | Chỉ trả dòng đúng trung tâm; `201`; cập nhật đúng dòng tồn, dòng kho kia không đổi; transaction trỏ đúng inventory/ticket; `low_stock` đúng tại biên `quantity <= min_quantity` | Cao | BLOCKED: MySQL local 8.4.9 từ chối DDL với `REFERENCES command denied`; chưa gửi request nghiệp vụ | BLOCKED |
-| TC-11 | Cùng schema test riêng; test tự reset/seed tồn = 5 và ticket mở | Ghi nhận số bản ghi, gửi `OUT`, đọc lại tồn và số bản ghi | Xuất 6 | `409`; tồn vẫn 5; không tăng số giao dịch | Cao | BLOCKED: suite dừng ở bước tạo foreign key trong `beforeAll`; assertion MySQL chưa chạy | BLOCKED |
-| TC-12 | Server test hoặc môi trường dev được phép kiểm tra | Thử CORS/error response, tìm kiếm bằng payload SQL/HTML và cookie xác thực thiếu/sửa | Origin không cho phép; `' OR 1=1 --`; `<script>alert(1)</script>`; cookie thiếu/sửa | CORS không phản chiếu origin tùy ý; lỗi không lộ stack/table; payload không làm thay đổi truy vấn hay chạy script; thiếu/sửa cookie trả `401` | Cao | Jest xác nhận payload được bind và cookie sửa trả `401`; kiểm tra CORS/error/UI thủ công chưa chạy | Một phần |
+- Mỗi ca khớp hoàn toàn kết quả mong đợi, có exit code `0`; 12 ca API MySQL
+  PASS, test cạnh tranh MySQL PASS, unit/service/API 38/38 PASS, cả suite
+  51/51 PASS.
+  Mã cần đúng gồm `201` tạo thành công, `400` dữ liệu sai, `401` chưa xác thực,
+  `404` không tìm thấy, `409` trùng mã/vượt tồn.
+- Dữ liệu hợp lệ phải đọc lại được từ MySQL; lỗi không được làm tăng số bản ghi
+  hay thay đổi tồn. Xuất 4/5/6 từ tồn 5 lần lượt cho tồn 1/0/bị từ chối, không
+  tồn âm; nhập/xuất gắn đúng phiếu.
+- Chạy khởi tạo và seed hai lần liên tiếp không lỗi, số lượng hàng sau hai lần
+  không đổi. Có ảnh minh chứng cho cả 12 ca và ba trạng thái S4.
 
-## 3. Kiểm tra OWASP và phạm vi đăng nhập
+## 4. Môi trường và dữ liệu thử
 
-| Mục | Cách kiểm | Quyết định/kết quả |
-|---|---|---|
-| A01 Broken Access Control | Gọi API không có session; thử truy cập dữ liệu giữa hai tài khoản | Không có mô hình nhiều người dùng hoặc dữ liệu sở hữu theo tài khoản, nên kiểm soát A-với-B **không áp dụng**. Bảo vệ API khi thiếu session được kiểm bằng `401`; không coi đây là phân quyền theo đối tượng. |
-| A02 Security Misconfiguration | Kiểm tra CORS với origin không cho phép và response lỗi máy chủ | **Có kiểm** trong TC-12; chỉ chấp nhận origin cấu hình và không trả stack trace/tên bảng. Phần kiểm thủ công còn chờ chạy. |
-| A04 Cryptographic Failures | Tìm mật khẩu lưu trong DB và xem dạng lưu | **Không áp dụng** với thiết kế hiện tại: không có bảng người dùng/mật khẩu; một credential cấu hình qua biến môi trường. Không đưa credential thật vào báo cáo. |
-| A05 Injection | Gửi `' OR 1=1 --` vào tìm kiếm; thử chuỗi HTML/script | **Có kiểm**: Jest xác nhận input chỉ xuất hiện trong bind parameters; kiểm tra render không thực thi script còn cần chạy trên UI. |
-| A07 Authentication Failures | Thử không có cookie, cookie đã sửa và logout | **Có kiểm**: thiếu/sửa cookie trả `401`; logout làm session cũ mất hiệu lực. Token hết hạn tự nhiên chưa được chờ đủ 8 giờ trong phiên test này. |
+Windows, Node.js 18.20.7, npm 10.8.2, Jest 30.5.2, MySQL local tại
+`127.0.0.1`; schema riêng `smartcrm_bt2_test` có hậu tố `_test`, không phải
+schema ứng dụng `smartcrm`. Fixture mỗi ca gồm part, hai kho có tồn 5 và 9,
+ngưỡng tối thiểu 3 và 2, cùng phiếu đang mở. Mỗi ca reset trước khi seed;
+hook cuối dọn fixture. TC-12 chạy init/seed hai lần ngay trên schema test.
 
-Đăng nhập một tài khoản cấu hình đã có trong code. Đây chưa phải phân quyền
-theo vai trò hay theo chủ sở hữu dữ liệu; không mở rộng sang đa tài khoản trong
-phạm vi test này.
-
-## 4. Kết luận và bằng chứng
-
-TC-09 đã chạy riêng bằng Jest: **1 passed** (14 test khác trong file được
-skip do lọc tên). Sau đó chạy `npm test`: **6 suites passed, 1 suite skipped;
-29 tests passed, 2 MySQL tests skipped**. Runtime validation độc lập đạt
-**2/2 assertions** (frontend HTTP probe và Jest). TC-09 là API test dùng DB
-mock, không phải bằng chứng tích hợp MySQL. TC-10 và TC-11 được triển khai với
-`resetDb()+seed` trên DB tên riêng `smartcrm_test` tại MySQL local 8.4.9, nhưng
-đang `BLOCKED`: lệnh `CREATE DATABASE` thành công, còn khởi tạo schema thất bại
-do user ứng dụng thiếu quyền `REFERENCES`; không có request nghiệp vụ nào được
-gửi tới test DB. Lệnh `GRANT` đã yêu cầu nhưng `SHOW GRANTS` sau đó vẫn chỉ ra
-rằng quyền chưa được áp dụng. Không
-dùng DB production để thay thế fixture test. Sau mỗi lần chạy, cập nhật cột
-**Kết quả thực tế** và **PASS/FAIL** bằng mã HTTP, nội dung phản hồi, trạng
-thái tồn/bản ghi và tên ảnh `docs/TC-xx.png`; không ghi kết quả dự kiến thành
-thực tế.
-
-Ảnh hiện có luồng UC03 trên MySQL thật tại
-[`e2e-xuat-kho.png`](./e2e-xuat-kho.png); đó là bằng chứng thực hiện trước đây,
-không phải ảnh của lần chạy TC-09 trong phiên này. Ảnh chụp kết quả lần chạy
-Jest mục tiêu và tổng suite, kèm trạng thái blocked MySQL, được lưu tại
-[`TC-09.png`](./TC-09.png).
+Lệnh chạy từng ca, ví dụ:
+`node node_modules/jest/bin/jest.js --runInBand --verbose tests/mysql-inventory.test.js --testNamePattern=TC-01`.
+Toàn bộ test tích hợp: `npm test -- --runInBand --verbose tests/mysql-inventory.test.js`.
+Kết quả và ảnh theo mã ca nằm trong [`test-report.md`](./test-report.md) và
+[`screenshots/`](./screenshots/).
