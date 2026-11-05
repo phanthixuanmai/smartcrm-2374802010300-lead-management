@@ -20,10 +20,11 @@ export async function renderPartDetail(container, inventoryId) {
             <section class="page-heading"><div><h2>Chi tiết linh kiện</h2><p>Thông tin tồn kho và lịch sử giao dịch.</p></div><a class="button button-primary" href="#transaction/${item.inventory_id}">＋ Nhập / xuất kho</a></section>
             <div class="detail-grid">
               <section class="panel detail-card">
-                <div class="detail-top"><span class="detail-thumb">◈</span><span><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.part_code)} · ${escapeHtml(item.center_code)}</p></span></div>
+                <div class="detail-top"><span class="detail-thumb">◈</span><span><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.part_code)} · ${escapeHtml(item.center_name || item.center_code)}</p></span></div>
                 <div class="stock-highlight"><small>TỒN HIỆN TẠI</small><strong>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</strong><span class="badge ${item.low_stock ? 'badge-low' : ''}">${item.low_stock ? 'Sắp hết hàng' : 'Đủ hàng'}</span></div>
                 <div class="detail-stat"><span>Ngưỡng tối thiểu</span><strong>${escapeHtml(item.min_quantity)} ${escapeHtml(item.unit)}</strong></div>
                 <div class="detail-stat"><span>Đơn vị tính</span><strong>${escapeHtml(item.unit)}</strong></div>
+                <div class="detail-stat"><span>Đơn giá</span><strong>${Number(item.unit_price || 0).toLocaleString('vi-VN')} ₫</strong></div>
                 <div class="detail-stat"><span>Mô tả</span><strong>${escapeHtml(item.description || '—')}</strong></div>
                 <div class="detail-stat"><span>Cập nhật gần nhất</span><strong>${new Date(item.updated_at).toLocaleString('vi-VN')}</strong></div>
               </section>

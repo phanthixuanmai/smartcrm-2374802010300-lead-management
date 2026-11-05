@@ -1,5 +1,5 @@
 const { afterAll, beforeAll, expect, test } = require('@jest/globals');
-const { createApp } = require('../src/backend/app');
+const { startAuthenticatedServer } = require('./authenticated-server');
 
 const tickets = [
   { ticket_id: '1', ticket_code: 'BH-2026-001', status: 'OPEN', created_at: '2026-01-01' },
@@ -8,6 +8,7 @@ const tickets = [
 
 let server;
 let baseUrl;
+let request;
 let nextId = 3;
 
 beforeAll(async () => {
@@ -74,9 +75,7 @@ beforeAll(async () => {
     }
   };
 
-  server = createApp(db).listen(0);
-  await new Promise((resolve) => server.once('listening', resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  ({ server, baseUrl, request } = await startAuthenticatedServer(db));
 });
 
 afterAll(async () => {
@@ -86,18 +85,18 @@ afterAll(async () => {
 });
 
 test('warranty ticket CRUD returns expected results and rejects invalid input', async () => {
-  const listed = await fetch(`${baseUrl}/api/warranty-tickets?status=open`);
+  const listed = await request('/api/warranty-tickets?status=open');
   expect(listed.status).toBe(200);
   expect(await listed.json()).toHaveLength(2);
 
-  const invalid = await fetch(`${baseUrl}/api/warranty-tickets`, {
+  const invalid = await request('/api/warranty-tickets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticket_code: 'BH-INVALID', status: 'UNKNOWN' })
   });
   expect(invalid.status).toBe(400);
 
-  const created = await fetch(`${baseUrl}/api/warranty-tickets`, {
+  const created = await request('/api/warranty-tickets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticket_code: 'BH-TEST-001' })
@@ -106,14 +105,14 @@ test('warranty ticket CRUD returns expected results and rejects invalid input', 
   const newTicket = await created.json();
   expect(newTicket).toMatchObject({ ticket_code: 'BH-TEST-001', status: 'OPEN' });
 
-  const duplicate = await fetch(`${baseUrl}/api/warranty-tickets`, {
+  const duplicate = await request('/api/warranty-tickets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticket_code: 'BH-TEST-001' })
   });
   expect(duplicate.status).toBe(409);
 
-  const updated = await fetch(`${baseUrl}/api/warranty-tickets/${newTicket.ticket_id}`, {
+  const updated = await request(`/api/warranty-tickets/${newTicket.ticket_id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticket_code: 'BH-TEST-001', status: 'CLOSED' })
@@ -121,16 +120,16 @@ test('warranty ticket CRUD returns expected results and rejects invalid input', 
   expect(updated.status).toBe(200);
   expect(await updated.json()).toMatchObject({ status: 'CLOSED' });
 
-  const removed = await fetch(`${baseUrl}/api/warranty-tickets/${newTicket.ticket_id}`, {
+  const removed = await request(`/api/warranty-tickets/${newTicket.ticket_id}`, {
     method: 'DELETE'
   });
   expect(removed.status).toBe(204);
 
-  const missing = await fetch(`${baseUrl}/api/warranty-tickets/${newTicket.ticket_id}`);
+  const missing = await request(`/api/warranty-tickets/${newTicket.ticket_id}`);
   expect(missing.status).toBe(404);
 });
 
 test('warranty tickets referenced by stock transactions cannot be deleted', async () => {
-  const response = await fetch(`${baseUrl}/api/warranty-tickets/1`, { method: 'DELETE' });
+  const response = await request('/api/warranty-tickets/1', { method: 'DELETE' });
   expect(response.status).toBe(409);
 });

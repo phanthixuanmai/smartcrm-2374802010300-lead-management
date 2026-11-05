@@ -3,8 +3,16 @@ CREATE TABLE IF NOT EXISTS part (
   part_code VARCHAR(40) NOT NULL UNIQUE,
   name VARCHAR(150) NOT NULL,
   unit VARCHAR(30) NOT NULL,
+  unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   description VARCHAR(500),
   is_active BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS service_center (
+  center_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  center_code VARCHAR(30) NOT NULL UNIQUE,
+  center_name VARCHAR(150) NOT NULL,
+  city VARCHAR(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS inventory (
@@ -12,7 +20,7 @@ CREATE TABLE IF NOT EXISTS inventory (
   part_id BIGINT UNSIGNED NOT NULL,
   center_code VARCHAR(30) NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
-  min_quantity INTEGER NOT NULL DEFAULT 0 CHECK (min_quantity >= 0),
+  min_quantity INTEGER NOT NULL DEFAULT 2 CHECK (min_quantity >= 0),
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT uq_inventory_part_center UNIQUE (part_id, center_code),
   INDEX idx_inventory_center_quantity (center_code, quantity),
@@ -55,31 +63,9 @@ CREATE TABLE IF NOT EXISTS stock_alert (
     REFERENCES inventory(inventory_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO part (part_code, name, unit, description)
-VALUES
-  ('PART-001', 'Màn hình iPhone 11', 'cái', 'Màn hình thay thế iPhone 11'),
-  ('PART-002', 'Pin Samsung A52', 'cái', 'Pin thay thế Samsung Galaxy A52'),
-  ('PART-003', 'Cáp sạc USB-C', 'cái', 'Cáp sạc USB-C dùng cho điện thoại')
-ON DUPLICATE KEY UPDATE part_code = part_code;
-
-INSERT INTO warranty_ticket (ticket_code, status)
-VALUES
-  ('BH-2026-001', 'OPEN'),
-  ('BH-2026-002', 'OPEN')
-ON DUPLICATE KEY UPDATE ticket_code = ticket_code;
-
-INSERT INTO inventory (part_id, center_code, quantity, min_quantity)
-SELECT part_id, 'MEKONG-01',
-  CASE part_code
-    WHEN 'PART-001' THEN 5
-    WHEN 'PART-002' THEN 8
-    ELSE 12
-  END,
-  CASE part_code
-    WHEN 'PART-001' THEN 2
-    WHEN 'PART-002' THEN 2
-    ELSE 3
-  END
-FROM part
-WHERE part_code IN ('PART-001', 'PART-002', 'PART-003')
-ON DUPLICATE KEY UPDATE quantity = inventory.quantity;
+CREATE TABLE IF NOT EXISTS imported_transaction_source (
+  source_transaction_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  transaction_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  CONSTRAINT fk_imported_source_transaction FOREIGN KEY (transaction_id)
+    REFERENCES stock_transaction(transaction_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

@@ -3,7 +3,7 @@ require('dotenv').config();
 const { createApp } = require('./app');
 const { createPool } = require('./config/database');
 
-const port = Number(process.env.APP_PORT || 3000);
+const port = Number(process.env.PORT || process.env.APP_PORT || 3000);
 
 async function startServer() {
   let pool;

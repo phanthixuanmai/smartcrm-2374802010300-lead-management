@@ -6,7 +6,7 @@
   "main": "src/backend/server.js",
   "scripts": {
     "dev": "node --watch src/backend/server.js",
-    "start": "node src/backend/server.js",
+    "start": "node src/backend/start.js",
     "dev:frontend": "node src/frontend/server.js",
     "db:init": "node src/backend/scripts/init-db.js",
     "test": "jest --runInBand"

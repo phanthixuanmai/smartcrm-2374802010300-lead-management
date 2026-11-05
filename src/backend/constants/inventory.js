@@ -1,0 +1,3 @@
+const MIN_INVENTORY_QUANTITY = 2;
+
+module.exports = { MIN_INVENTORY_QUANTITY };

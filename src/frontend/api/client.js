@@ -1,6 +1,7 @@
-const API_BASE = window.location.port === '3000'
-  ? '/api'
-  : `${window.location.protocol}//${window.location.hostname}:3000/api`;
+const isSeparateDevelopmentFrontend = ['5173', '5500'].includes(window.location.port);
+const API_BASE = isSeparateDevelopmentFrontend
+  ? `${window.location.protocol}//${window.location.hostname}:3000/api`
+  : '/api';
 
 export async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -10,16 +11,18 @@ export async function request(path, options = {}) {
 
   let response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include'
+    });
   } catch (error) {
     const networkError = new Error('Không thể kết nối đến máy chủ API. Kiểm tra backend và thử lại.');
     networkError.cause = error;
     throw networkError;
   }
   if (response.status === 401) {
-    localStorage.removeItem('token');
-    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-    if (window.location.pathname !== '/login') {
+    if (window.location.hash !== '#login') {
       window.location.hash = 'login';
     }
   }

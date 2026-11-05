@@ -1,175 +1,64 @@
 const express = require('express');
+const { PartError } = require('../services/parts');
 
-const requiredTextFields = ['part_code', 'name', 'unit'];
-const allowedFields = [...requiredTextFields, 'description', 'is_active'];
+const PART_ERROR_STATUS = {
+  INVALID_ID: 400,
+  INVALID_DATA: 400,
+  PART_NOT_FOUND: 404,
+  DUPLICATE_PART_CODE: 409
+};
 
-function validatePart(body) {
-  const errors = [];
-
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-    return ['request body must be a JSON object'];
+function handlePartError(error, res, next) {
+  if (error instanceof PartError) {
+    return res.status(PART_ERROR_STATUS[error.code]).json({
+      error: error.message,
+      ...(error.code === 'INVALID_DATA' ? { details: [error.message] } : {})
+    });
   }
-
-  for (const field of requiredTextFields) {
-    if (typeof body[field] !== 'string' || body[field].trim() === '') {
-      errors.push(`${field} is required and must be a non-empty string`);
-    }
-  }
-
-  if (body.description !== undefined && body.description !== null
-    && typeof body.description !== 'string') {
-    errors.push('description must be a string or null');
-  }
-
-  if (body.is_active !== undefined && typeof body.is_active !== 'boolean') {
-    errors.push('is_active must be a boolean');
-  }
-
-  const unexpectedFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
-  if (unexpectedFields.length > 0) {
-    errors.push(`Unexpected fields: ${unexpectedFields.join(', ')}`);
-  }
-
-  return errors;
+  return next(error);
 }
 
-function normalizePart(body) {
-  return {
-    partCode: body.part_code.trim(),
-    name: body.name.trim(),
-    unit: body.unit.trim(),
-    description: body.description === undefined ? null : body.description,
-    isActive: body.is_active === undefined ? true : body.is_active
-  };
-}
-
-function createPartsRouter() {
+function createPartsRouter(service) {
   const router = express.Router();
-  const isValidId = (id) => /^[1-9]\d*$/.test(id)
-    && BigInt(id) <= 18446744073709551615n;
 
   router.get('/', async (req, res, next) => {
     try {
-      const [rows] = await req.app.locals.db.execute(
-        `SELECT part_id, part_code, name, unit, description, is_active
-         FROM part
-         ORDER BY part_id`
-      );
-      res.status(200).json(rows);
+      return res.status(200).json(await service.list());
     } catch (error) {
-      next(error);
+      return handlePartError(error, res, next);
     }
   });
 
   router.get('/:id', async (req, res, next) => {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Part id must be a positive integer' });
-    }
-
     try {
-      const [rows] = await req.app.locals.db.execute(
-        `SELECT part_id, part_code, name, unit, description, is_active
-         FROM part
-         WHERE part_id = ?`,
-        [req.params.id]
-      );
-
-      if (rows.length === 0) {
-        return res.status(404).json({ error: 'Part not found' });
-      }
-
-      return res.status(200).json(rows[0]);
+      return res.status(200).json(await service.get(req.params.id));
     } catch (error) {
-      return next(error);
+      return handlePartError(error, res, next);
     }
   });
 
   router.post('/', async (req, res, next) => {
-    const errors = validatePart(req.body);
-    if (errors.length > 0) {
-      return res.status(400).json({ error: 'Invalid part data', details: errors });
-    }
-
-    const part = normalizePart(req.body);
     try {
-      const [result] = await req.app.locals.db.execute(
-        `INSERT INTO part (part_code, name, unit, description, is_active)
-         VALUES (?, ?, ?, ?, ?)`,
-        [part.partCode, part.name, part.unit, part.description, part.isActive]
-      );
-      const [rows] = await req.app.locals.db.execute(
-        `SELECT part_id, part_code, name, unit, description, is_active
-         FROM part
-         WHERE part_id = ?`,
-        [result.insertId]
-      );
-      return res.status(201).json(rows[0]);
+      return res.status(201).json(await service.create(req.body));
     } catch (error) {
-      return next(error);
+      return handlePartError(error, res, next);
     }
   });
 
   router.put('/:id', async (req, res, next) => {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Part id must be a positive integer' });
-    }
-
-    const errors = validatePart(req.body);
-    if (errors.length > 0) {
-      return res.status(400).json({ error: 'Invalid part data', details: errors });
-    }
-
-    const part = normalizePart(req.body);
     try {
-      const [existing] = await req.app.locals.db.execute(
-        'SELECT part_id FROM part WHERE part_id = ?',
-        [req.params.id]
-      );
-      if (existing.length === 0) {
-        return res.status(404).json({ error: 'Part not found' });
-      }
-
-      await req.app.locals.db.execute(
-        `UPDATE part
-         SET part_code = ?, name = ?, unit = ?, description = ?, is_active = ?
-         WHERE part_id = ?`,
-        [part.partCode, part.name, part.unit, part.description, part.isActive, req.params.id]
-      );
-
-      const [rows] = await req.app.locals.db.execute(
-        `SELECT part_id, part_code, name, unit, description, is_active
-         FROM part
-         WHERE part_id = ?`,
-        [req.params.id]
-      );
-      if (rows.length === 0) {
-        return res.status(404).json({ error: 'Part not found' });
-      }
-
-      return res.status(200).json(rows[0]);
+      return res.status(200).json(await service.update(req.params.id, req.body));
     } catch (error) {
-      return next(error);
+      return handlePartError(error, res, next);
     }
   });
 
   router.delete('/:id', async (req, res, next) => {
-    if (!isValidId(req.params.id)) {
-      return res.status(400).json({ error: 'Part id must be a positive integer' });
-    }
-
     try {
-      const [result] = await req.app.locals.db.execute(
-        'DELETE FROM part WHERE part_id = ?',
-        [req.params.id]
-      );
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'Part not found' });
-      }
-
+      await service.delete(req.params.id);
       return res.status(204).end();
     } catch (error) {
-      return next(error);
+      return handlePartError(error, res, next);
     }
   });
 

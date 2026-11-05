@@ -1,4 +1,4 @@
-import { createTransaction, getInventory } from '../api/inventory.api.js';
+import { createTransaction, getInventory, listInventory } from '../api/inventory.api.js';
 import { listOpenTickets } from '../api/warranty-tickets.api.js';
 import { escapeHtml, renderDataState } from '../components/data-state.js';
 
@@ -19,6 +19,16 @@ export async function renderTransactionForm(container, inventoryId) {
             <section class="page-heading"><div><h2>Ghi nhận nhập / xuất kho</h2><p>Giao dịch sẽ cập nhật số tồn và lịch sử trong cùng một database transaction.</p></div></section>
             <div id="transaction-message"></div>
             <section class="panel form-panel">
+              <section class="part-picker" aria-labelledby="part-picker-title">
+                <h3 id="part-picker-title">Tìm linh kiện theo tên</h3>
+                <p>Nhập tên hoặc một phần tên để tìm linh kiện và chọn đúng trung tâm tồn kho.</p>
+                <form id="part-search-form" class="part-search-form">
+                  <label class="sr-only" for="part-search-name">Tên linh kiện</label>
+                  <input id="part-search-name" name="name" type="search" required maxlength="150" placeholder="Ví dụ: Màn hình iPhone 11">
+                  <button class="button button-secondary" type="submit">Tìm linh kiện</button>
+                </form>
+                <div id="part-search-results" class="part-search-results" aria-live="polite"></div>
+              </section>
               <div class="detail-top"><span class="detail-thumb">◈</span><span><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.part_code)} · ${escapeHtml(item.center_code)} · Tồn hiện tại: ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</p></span></div>
               <form id="transaction-form">
                 <div class="form-grid">
@@ -34,6 +44,51 @@ export async function renderTransactionForm(container, inventoryId) {
             </section>`;
 
           const form = container.querySelector('#transaction-form');
+          const partSearchForm = container.querySelector('#part-search-form');
+          const partSearchInput = partSearchForm.elements.name;
+          const partSearchResults = container.querySelector('#part-search-results');
+          const partSearchButton = partSearchForm.querySelector('button[type="submit"]');
+          partSearchForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const search = partSearchInput.value.trim();
+            if (!search) {
+              return;
+            }
+
+            partSearchButton.disabled = true;
+            partSearchButton.textContent = 'Đang tìm...';
+            partSearchResults.textContent = '';
+            try {
+              const { items } = await listInventory({ q: search, page: 1, pageSize: 100 });
+              const normalizedSearch = search.toLocaleLowerCase('vi');
+              const matches = items.filter((candidate) => (
+                candidate.name.toLocaleLowerCase('vi').includes(normalizedSearch)
+              ));
+              if (matches.length === 0) {
+                partSearchResults.innerHTML = '<p class="part-search-empty" role="status">Không tìm thấy linh kiện có tên phù hợp trong tồn kho.</p>';
+                return;
+              }
+
+              partSearchResults.innerHTML = matches.map((candidate) => `
+                <button class="part-match" type="button" data-inventory-id="${escapeHtml(candidate.inventory_id)}">
+                  <span><strong>${escapeHtml(candidate.name)}</strong><small>${escapeHtml(candidate.part_code)} · ${escapeHtml(candidate.center_name || candidate.center_code)}</small></span>
+                  <span class="part-match-stock">Tồn: ${escapeHtml(candidate.quantity)} ${escapeHtml(candidate.unit)}</span>
+                </button>
+              `).join('');
+            } catch (error) {
+              partSearchResults.textContent = error.message || 'Không thể tìm linh kiện. Vui lòng thử lại.';
+            } finally {
+              partSearchButton.disabled = false;
+              partSearchButton.textContent = 'Tìm linh kiện';
+            }
+          });
+          partSearchResults.addEventListener('click', (event) => {
+            const target = event.target.closest('button[data-inventory-id]');
+            if (target) {
+              window.location.hash = `transaction/${encodeURIComponent(target.dataset.inventoryId)}`;
+            }
+          });
+
           const type = form.elements.type;
           const quantity = form.elements.quantity;
           const ticketField = container.querySelector('#ticket-field');

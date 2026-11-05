@@ -24,12 +24,12 @@ function handleWarrantyTicketError(error, res, next) {
   return next(error);
 }
 
-function createWarrantyTicketsRouter() {
+function createWarrantyTicketsRouter(repository) {
   const router = express.Router();
 
   router.get('/', async (req, res, next) => {
     try {
-      const rows = await listWarrantyTickets(req.app.locals.db, req.query.status);
+      const rows = await listWarrantyTickets(repository, req.query.status);
       return res.status(200).json(rows);
     } catch (error) {
       return handleWarrantyTicketError(error, res, next);
@@ -38,7 +38,7 @@ function createWarrantyTicketsRouter() {
 
   router.get('/:id', async (req, res, next) => {
     try {
-      const ticket = await getWarrantyTicket(req.app.locals.db, req.params.id);
+      const ticket = await getWarrantyTicket(repository, req.params.id);
       return res.status(200).json(ticket);
     } catch (error) {
       return handleWarrantyTicketError(error, res, next);
@@ -47,7 +47,7 @@ function createWarrantyTicketsRouter() {
 
   router.post('/', async (req, res, next) => {
     try {
-      const ticket = await createWarrantyTicket(req.app.locals.db, req.body);
+      const ticket = await createWarrantyTicket(repository, req.body);
       return res.status(201).json(ticket);
     } catch (error) {
       return handleWarrantyTicketError(error, res, next);
@@ -56,7 +56,7 @@ function createWarrantyTicketsRouter() {
 
   router.put('/:id', async (req, res, next) => {
     try {
-      const ticket = await updateWarrantyTicket(req.app.locals.db, req.params.id, req.body);
+      const ticket = await updateWarrantyTicket(repository, req.params.id, req.body);
       return res.status(200).json(ticket);
     } catch (error) {
       return handleWarrantyTicketError(error, res, next);
@@ -65,7 +65,7 @@ function createWarrantyTicketsRouter() {
 
   router.delete('/:id', async (req, res, next) => {
     try {
-      await deleteWarrantyTicket(req.app.locals.db, req.params.id);
+      await deleteWarrantyTicket(repository, req.params.id);
       return res.status(204).end();
     } catch (error) {
       return handleWarrantyTicketError(error, res, next);

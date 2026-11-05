@@ -39,9 +39,14 @@ copy .env.example .env
 
 Sửa `DB_USER` và `DB_PASSWORD` trong `.env` thành tài khoản MySQL trên máy bạn
 (máy thực hiện hiện đã cấu hình tài khoản ứng dụng cục bộ).
+Đặt `AUTH_USERNAME` và `AUTH_PASSWORD` để tạo tài khoản đăng nhập SmartCRM;
+hãy thay mật khẩu mẫu bằng mật khẩu riêng, đủ mạnh trước khi triển khai.
+Sau khi chạy frontend tại `http://localhost:5173`, đăng nhập bằng tài khoản
+này. Phiên đăng nhập lưu trong cookie `HttpOnly`, hết hạn sau 8 giờ và mất hiệu
+lực khi máy chủ khởi động lại.
 Không commit file `.env`. Mặc định cấu hình kết nối MySQL tại `localhost:3306`.
-Tài khoản phải có quyền tạo database `smartcrm`; lệnh khởi tạo sẽ tự tạo database,
-5 bảng, 3 linh kiện, 3 dòng tồn kho và 2 phiếu bảo hành đang mở.
+Tài khoản phải có quyền tạo database `smartcrm`; lệnh khởi tạo sẽ tự tạo database
+và schema, rồi nhập dữ liệu CSV trong `data/imports/`.
 
 Nếu chưa có MySQL Server, hãy cài MySQL Community Server 8.0.16+ và khởi động
 dịch vụ MySQL trước khi chạy app. Có thể tạo database và cấp quyền trong MySQL
@@ -66,9 +71,18 @@ npm run db:init
 npm run dev
 ```
 
-`db:init` tự tạo database MySQL `smartcrm` nếu chưa có và khởi tạo dữ liệu mẫu
-có thể chạy lại an toàn. Backend khởi động thành công khi terminal hiển thị
+`db:init` tự tạo database MySQL `smartcrm` nếu chưa có, sau đó nhập tối đa 100
+dòng dữ liệu từ mỗi `data/imports/parts.csv` và
+`data/imports/part_transactions.csv`, cùng toàn bộ
+`data/imports/service_centers.csv`. Các giao dịch đầu vào tham chiếu linh kiện
+không nằm trong 100 dòng đầu bị bỏ qua để bảo toàn khóa ngoại; với bộ dữ liệu
+này, 51/100 giao dịch được nhập. Đơn vị tính dùng `cái` do CSV linh kiện không
+có cột đơn vị; tồn kho ban đầu được tính từ các giao dịch đã nhập. Chạy lại
+`db:init` không nhân đôi lịch sử giao dịch đã nhập. Backend khởi động thành công khi terminal hiển thị
 `MySQL database connected` và `Server running... port 3000`.
+Ngưỡng tối thiểu của mỗi dòng tồn kho là 2 cái; hệ thống bật cảnh báo khi tồn
+thực tế nhỏ hơn hoặc bằng ngưỡng này. Lệnh khởi tạo cập nhật ngưỡng 2 cho dữ
+liệu kho hiện có.
 
 Các bước dựng hệ thống từ đầu:
 
@@ -108,12 +122,14 @@ Ví dụ body cho POST/PUT:
   "part_code": "PART-004",
   "name": "Pin iPhone 12",
   "unit": "cái",
+  "unit_price": 125000,
   "description": "Pin thay thế iPhone 12",
   "is_active": true
 }
 ```
 
-Ba bản ghi seed: `PART-001`, `PART-002` và `PART-003`.
+Danh mục linh kiện được nhập từ 100 dòng đầu của `data/imports/parts.csv`;
+giá nhập từ CSV được lưu ở `unit_price` và trả về trong Parts API.
 
 ## 6. Inventory API và giao diện Sprint 2
 
@@ -129,7 +145,7 @@ hiển thị lỗi kết nối có hướng dẫn và nút thử lại. Ảnh gi
 
 | Method | Endpoint | Kết quả |
 |---|---|---|
-| GET | `/api/inventory` | Danh sách tồn kho có phân trang; hỗ trợ `centerCode`, `q`, `page`, `pageSize` |
+| GET | `/api/inventory` | Danh sách tồn kho có phân trang; hỗ trợ `centerCode`, `q`, `page`, `pageSize`; trả thêm tên và thành phố trung tâm |
 | GET | `/api/inventory/:id` | Chi tiết một dòng tồn |
 | GET | `/api/inventory/:id/transactions` | Tối đa 100 giao dịch gần nhất và phiếu liên quan |
 | POST | `/api/inventory/:id/transactions` | Nhập `IN` hoặc xuất `OUT`; ghi lịch sử và cập nhật tồn trong một transaction |
@@ -162,17 +178,54 @@ Ví dụ xuất 2 linh kiện tồn kho cho phiếu bảo hành đang mở:
 
 `quantity` phải là số nguyên dương. Xuất kho bắt buộc có `ticketId` hợp lệ
 đang mở; tồn không đủ trả `409`. `POST` thành công trả `201` cùng `newStock`.
+Tại form giao dịch, kỹ thuật viên có thể tìm theo tên linh kiện; kết quả cho
+biết mã, trung tâm và lượng tồn để chọn đúng dòng kho trước khi ghi nhận.
 Các biến `FRONTEND_ORIGINS` trong `.env` có thể dùng để đổi danh sách origin
 dev được phép gọi API.
 
-## 7. Checklist xác nhận
+## 7. Deploy trên Railway
+
+Repository đã có `railway.json`: Railway chạy `npm ci`, sau đó `npm start`;
+health check dùng `/health`. Ứng dụng phục vụ cả frontend và API trên cùng một
+domain Railway.
+
+1. Tạo hoặc mở project Railway, thêm MySQL service và kết nối service ứng dụng
+   với MySQL bằng **reference variables**, không chép thông tin database vào mã
+   nguồn.
+2. Tạo Application service từ GitHub repository này và chọn nhánh muốn deploy.
+   Railway sẽ đọc `railway.json` tại thư mục gốc.
+3. Trong **Application → Variables**, thêm các biến:
+
+   | Biến | Giá trị |
+   |---|---|
+   | `DB_HOST` | `${{MySQL.MYSQLHOST}}` |
+   | `DB_PORT` | `${{MySQL.MYSQLPORT}}` |
+   | `DB_NAME` | `${{MySQL.MYSQLDATABASE}}` |
+   | `DB_USER` | `${{MySQL.MYSQLUSER}}` |
+   | `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
+   | `AUTH_USERNAME` | Tên tài khoản SmartCRM do bạn chọn |
+   | `AUTH_PASSWORD` | Mật khẩu ngẫu nhiên, đủ mạnh do bạn tự đặt |
+   | `NODE_ENV` | `production` |
+
+   Thay `MySQL` trong cú pháp reference bằng đúng tên MySQL service trong
+   project. Railway tự cấp `PORT`. Không đặt `DB_CREATE_DATABASE=false` trừ khi
+   database trong `DB_NAME` đã tồn tại và user có quyền tạo các bảng.
+4. Deploy và chờ health check `/health` thành công; mở domain public của
+   Application service và đăng nhập bằng `AUTH_USERNAME`/`AUTH_PASSWORD`.
+
+Lệnh `npm start` chạy khởi tạo schema và nhập CSV trước khi mở HTTP server.
+Vì vậy user MySQL phải có quyền tạo database khi database chưa tồn tại và tạo
+bảng trong database. Import chỉ lấy tối đa 100 dòng đầu từ mỗi CSV; chạy deploy
+lặp lại không nhân đôi các giao dịch CSV đã được đánh dấu import.
+
+## 8. Checklist xác nhận
 
 Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
 
-- [x] Database connection (`npm run db:init`, đủ 5 bảng; server báo kết nối thành công)
+- [ ] Database connection and CSV import (`npm run db:init`, 7 bảng; CSV nhập tối đa 100 dòng mỗi tệp)
 - [x] Part CRUD (GET, POST, GET by id, PUT, DELETE; đã kiểm thử với MySQL thật)
 - [x] API testing (POST trùng `part_code` trả `409`; đã kiểm thử với MySQL thật)
-- [x] Chạy `npm run db:init` hai lần trên MySQL 8.4.9 cô lập; vẫn có 3 linh kiện, 3 dòng tồn kho và 2 phiếu
+- [ ] Chạy `npm run db:init` hai lần; xác nhận dữ liệu CSV không bị nhân đôi
 - [ ] Screenshots trong `docs/`:
   - [ ] `server-running.png`
   - [ ] `db-connected.png`
@@ -184,7 +237,7 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
   - [x] Backend tắt: `backend-offline-error.png`
 - [x] Sprint 2 đã kiểm thử với MySQL thật, gồm xuất kho gắn phiếu bảo hành và kiểm tra tồn sau giao dịch
 - [ ] Ảnh kết quả `npm test` đã lưu trong `docs/`
-- [x] Có ít nhất 5 unit test và test ngoại lệ/biên; `npm test` đạt 20/20
+- [x] Có unit test và test ngoại lệ/biên; `npm test` đạt 26/26
 - [x] Giao diện có trạng thái tải, rỗng, lỗi và nút thử lại
 - [x] Đã hoàn thành hướng dẫn dựng hệ thống ở mục 3
 - [x] Clone sạch commit nộp từ GitHub vào thư mục mới; `npm ci` và `npm test` đạt 20/20
@@ -196,3 +249,36 @@ Ghi từng feedback nguyên văn của giảng viên, quyết định SỬA/GI�
 thiết kế bị ảnh hưởng tại [`docs/thay-doi-thiet-ke.md`](docs/thay-doi-thiet-ke.md).
 Tổng kết công việc, kiểm chứng UC03, ảnh đã có và các việc còn chờ trong workshop
 được ghi tại [`docs/workshop-buoi-10.md`](docs/workshop-buoi-10.md).
+
+## 9. Triển khai Railway
+
+Ứng dụng có thể chạy với một Railway service cho Node.js (Express phục vụ cả
+API và giao diện) và một Railway MySQL service. Cấu hình service Node.js nằm
+trong `railway.json`; Railway dùng `PORT` được cấp tự động và endpoint
+`/health` để kiểm tra trạng thái.
+
+1. Tạo Railway project, thêm service ứng dụng từ repository này và thêm một
+   service MySQL trong cùng project/environment.
+2. Trong Variables của service ứng dụng, tham chiếu các biến MySQL của service
+   database (thay `MySQL` bằng đúng tên service nếu bạn đặt tên khác):
+
+   ```text
+   DB_HOST=${{MySQL.MYSQLHOST}}
+   DB_PORT=${{MySQL.MYSQLPORT}}
+   DB_USER=${{MySQL.MYSQLUSER}}
+   DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+   DB_NAME=${{MySQL.MYSQLDATABASE}}
+   DB_CREATE_DATABASE=false
+   ```
+
+   Không đưa mật khẩu vào Git hoặc chat. `DB_CREATE_DATABASE=false` yêu cầu
+   script dùng database Railway đã tạo thay vì cố tạo database mới.
+3. Triển khai service ứng dụng. Lệnh `npm start` khởi tạo schema và dữ liệu mẫu
+   trước khi bật server; thao tác này chạy trong private network và có thể chạy
+   lại an toàn.
+4. Tạo public domain cho service ứng dụng trong Railway. Mở URL đó để kiểm tra
+   giao diện; `/health` trả trạng thái service và `/api/inventory` trả dữ liệu.
+   Frontend gọi API cùng origin khi được phục vụ từ service ứng dụng.
+
+Các dịch vụ cloud và database có thể phát sinh phí theo tài khoản/gói Railway.
+Phần cấu hình này chưa tạo Railway project, tài nguyên hoặc public domain.

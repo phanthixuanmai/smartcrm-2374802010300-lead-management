@@ -47,74 +47,50 @@ function translateDuplicateCode(error) {
   throw error;
 }
 
-async function listWarrantyTickets(db, status) {
+async function listWarrantyTickets(repository, status) {
   const normalizedStatus = status === undefined ? null : String(status).toUpperCase();
   if (normalizedStatus && !TICKET_STATUSES.includes(normalizedStatus)) {
     throw new WarrantyTicketError('INVALID_STATUS', 'status must be OPEN, CLOSED, or CANCELLED');
   }
-  const [rows] = await db.execute(
-    `SELECT ticket_id, ticket_code, status, created_at
-     FROM warranty_ticket
-     ${normalizedStatus ? 'WHERE status = ?' : ''}
-     ORDER BY created_at DESC, ticket_id DESC`,
-    normalizedStatus ? [normalizedStatus] : []
-  );
-  return rows;
+  return repository.list(normalizedStatus);
 }
 
-async function getWarrantyTicket(db, id) {
+async function getWarrantyTicket(repository, id) {
   validateId(id);
-  const [rows] = await db.execute(
-    `SELECT ticket_id, ticket_code, status, created_at
-     FROM warranty_ticket WHERE ticket_id = ?`,
-    [id]
-  );
-  if (rows.length === 0) {
+  const ticket = await repository.findById(id);
+  if (!ticket) {
     throw new WarrantyTicketError('TICKET_NOT_FOUND', 'Warranty ticket not found');
   }
-  return rows[0];
+  return ticket;
 }
 
-async function createWarrantyTicket(db, input) {
+async function createWarrantyTicket(repository, input) {
   const ticket = normalizeTicket(input, { allowDefaultStatus: true });
-  let result;
   try {
-    [result] = await db.execute(
-      'INSERT INTO warranty_ticket (ticket_code, status) VALUES (?, ?)',
-      [ticket.ticketCode, ticket.status]
-    );
+    return await repository.create(ticket);
   } catch (error) {
     translateDuplicateCode(error);
   }
-  return getWarrantyTicket(db, String(result.insertId));
 }
 
-async function updateWarrantyTicket(db, id, input) {
+async function updateWarrantyTicket(repository, id, input) {
   validateId(id);
   const ticket = normalizeTicket(input);
-  let result;
   try {
-    [result] = await db.execute(
-      'UPDATE warranty_ticket SET ticket_code = ?, status = ? WHERE ticket_id = ?',
-      [ticket.ticketCode, ticket.status, id]
-    );
+    const updated = await repository.update(id, ticket);
+    if (!updated) {
+      throw new WarrantyTicketError('TICKET_NOT_FOUND', 'Warranty ticket not found');
+    }
+    return updated;
   } catch (error) {
     translateDuplicateCode(error);
   }
-  if (result.affectedRows === 0) {
-    throw new WarrantyTicketError('TICKET_NOT_FOUND', 'Warranty ticket not found');
-  }
-  return getWarrantyTicket(db, id);
 }
 
-async function deleteWarrantyTicket(db, id) {
+async function deleteWarrantyTicket(repository, id) {
   validateId(id);
   try {
-    const [result] = await db.execute(
-      'DELETE FROM warranty_ticket WHERE ticket_id = ?',
-      [id]
-    );
-    if (result.affectedRows === 0) {
+    if (!await repository.delete(id)) {
       throw new WarrantyTicketError('TICKET_NOT_FOUND', 'Warranty ticket not found');
     }
   } catch (error) {

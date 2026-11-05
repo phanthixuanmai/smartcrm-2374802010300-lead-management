@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { afterAll, beforeAll, expect, test } = require('@jest/globals');
-const { createApp } = require('../src/backend/app');
+const { startAuthenticatedServer } = require('./authenticated-server');
 
 const parts = [
   {
@@ -8,6 +8,7 @@ const parts = [
     part_code: 'PART-001',
     name: 'Màn hình iPhone 11',
     unit: 'cái',
+    unit_price: 120000,
     description: 'Màn hình thay thế iPhone 11',
     is_active: true
   },
@@ -16,6 +17,7 @@ const parts = [
     part_code: 'PART-002',
     name: 'Pin Samsung A52',
     unit: 'cái',
+    unit_price: 300000,
     description: 'Pin thay thế Samsung Galaxy A52',
     is_active: true
   },
@@ -24,6 +26,7 @@ const parts = [
     part_code: 'PART-003',
     name: 'Cáp sạc USB-C',
     unit: 'cái',
+    unit_price: 50000,
     description: 'Cáp sạc USB-C dùng cho điện thoại',
     is_active: true
   }
@@ -31,6 +34,7 @@ const parts = [
 
 let server;
 let baseUrl;
+let request;
 
 beforeAll(async () => {
   const db = {
@@ -61,26 +65,28 @@ beforeAll(async () => {
           part_code: values[0],
           name: values[1],
           unit: values[2],
-          description: values[3],
-          is_active: values[4]
+          unit_price: values[3],
+          description: values[4],
+          is_active: values[5]
         };
         parts.push(row);
         return [{ insertId: row.part_id, affectedRows: 1 }, []];
       }
 
       if (sql.includes('UPDATE part')) {
-        const index = parts.findIndex((part) => part.part_id === values[5]);
+        const index = parts.findIndex((part) => part.part_id === values[6]);
         if (index === -1) {
           return [{ affectedRows: 0 }, []];
         }
 
         parts[index] = {
-          part_id: values[5],
+          part_id: values[6],
           part_code: values[0],
           name: values[1],
           unit: values[2],
-          description: values[3],
-          is_active: values[4]
+          unit_price: values[3],
+          description: values[4],
+          is_active: values[5]
         };
         return [{ affectedRows: 1 }, []];
       }
@@ -99,9 +105,7 @@ beforeAll(async () => {
     }
   };
 
-  server = createApp(db).listen(0);
-  await new Promise((resolve) => server.once('listening', resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  ({ server, baseUrl, request } = await startAuthenticatedServer(db));
 });
 
 afterAll(async () => {
@@ -111,22 +115,28 @@ afterAll(async () => {
 });
 
 test('GET /api/parts returns the parts list', async () => {
-  const response = await fetch(`${baseUrl}/api/parts`);
+  const response = await request('/api/parts');
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.length, 3);
   expect(result.map((part) => part.part_code)).toEqual(['PART-001', 'PART-002', 'PART-003']);
 });
 
+test('GET /health returns a healthy status', async () => {
+  const response = await fetch(`${baseUrl}/health`);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, 'ok');
+});
+
 test('GET /api/parts/:id returns a part or 404', async () => {
-  const found = await fetch(`${baseUrl}/api/parts/1`);
+  const found = await request('/api/parts/1');
   assert.equal(found.status, 200);
   assert.equal((await found.json()).part_code, 'PART-001');
 
-  const missing = await fetch(`${baseUrl}/api/parts/999`);
+  const missing = await request('/api/parts/999');
   assert.equal(missing.status, 404);
 
-  const invalidId = await fetch(`${baseUrl}/api/parts/not-a-number`);
+  const invalidId = await request('/api/parts/not-a-number');
   assert.equal(invalidId.status, 400);
 });
 
@@ -134,16 +144,18 @@ test('POST /api/parts creates a part and rejects duplicate codes', async () => {
   const payload = {
     part_code: 'PART-004',
     name: 'Fourth part',
-    unit: 'piece'
+    unit: 'piece',
+    unit_price: 125000
   };
-  const created = await fetch(`${baseUrl}/api/parts`, {
+  const created = await request('/api/parts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
   assert.equal(created.status, 201);
+  assert.equal((await created.json()).unit_price, 125000);
 
-  const duplicate = await fetch(`${baseUrl}/api/parts`, {
+  const duplicate = await request('/api/parts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -152,26 +164,34 @@ test('POST /api/parts creates a part and rejects duplicate codes', async () => {
 });
 
 test('PUT /api/parts/:id updates a part and validates input', async () => {
-  const updated = await fetch(`${baseUrl}/api/parts/1`, {
+  const updated = await request('/api/parts/1', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       part_code: 'PART-001',
       name: 'Updated part',
-      unit: 'piece'
+      unit: 'piece',
+      unit_price: 90000
     })
   });
   assert.equal(updated.status, 200);
   assert.equal((await updated.json()).name, 'Updated part');
 
-  const invalid = await fetch(`${baseUrl}/api/parts`, {
+  const invalidPrice = await request('/api/parts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ part_code: 'PART-005', name: 'Part', unit: 'piece', unit_price: -1 })
+  });
+  assert.equal(invalidPrice.status, 400);
+
+  const invalid = await request('/api/parts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ part_code: 'PART-003' })
   });
   assert.equal(invalid.status, 400);
 
-  const invalidBody = await fetch(`${baseUrl}/api/parts`, {
+  const invalidBody = await request('/api/parts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(null)
@@ -180,9 +200,9 @@ test('PUT /api/parts/:id updates a part and validates input', async () => {
 });
 
 test('DELETE /api/parts/:id removes an existing part', async () => {
-  const missing = await fetch(`${baseUrl}/api/parts/999`, { method: 'DELETE' });
+  const missing = await request('/api/parts/999', { method: 'DELETE' });
   assert.equal(missing.status, 404);
 
-  const response = await fetch(`${baseUrl}/api/parts/4`, { method: 'DELETE' });
+  const response = await request('/api/parts/4', { method: 'DELETE' });
   assert.equal(response.status, 204);
 });

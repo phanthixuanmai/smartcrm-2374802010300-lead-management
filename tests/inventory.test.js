@@ -1,9 +1,10 @@
 const { afterAll, beforeAll, describe, expect, test } = require('@jest/globals');
-const { createApp } = require('../src/backend/app');
+const { startAuthenticatedServer } = require('./authenticated-server');
 const { InventoryError, createTransactionPlan } = require('../src/backend/services/inventory');
 
 let server;
 let baseUrl;
+let request;
 
 beforeAll(async () => {
   const connection = {
@@ -16,9 +17,7 @@ beforeAll(async () => {
   };
   const db = { async getConnection() { return connection; } };
 
-  server = createApp(db).listen(0);
-  await new Promise((resolve) => server.once('listening', resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  ({ server, baseUrl, request } = await startAuthenticatedServer(db));
 });
 
 afterAll(async () => {
@@ -46,7 +45,7 @@ describe('createTransactionPlan', () => {
 
   describe('POST /api/inventory/:id/transactions', () => {
     test('maps invalid domain input to HTTP 400', async () => {
-      const response = await fetch(`${baseUrl}/api/inventory/1/transactions`, {
+      const response = await request('/api/inventory/1/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'IN', quantity: 0, createdBy: 'Technician' })
@@ -57,7 +56,7 @@ describe('createTransactionPlan', () => {
     });
 
     test('maps insufficient stock to HTTP 409', async () => {
-      const response = await fetch(`${baseUrl}/api/inventory/1/transactions`, {
+      const response = await request('/api/inventory/1/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

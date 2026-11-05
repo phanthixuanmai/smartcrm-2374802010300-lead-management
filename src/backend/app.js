@@ -4,20 +4,35 @@ const path = require('node:path');
 const { createPartsRouter } = require('./routes/parts');
 const { createInventoryRouter } = require('./routes/inventory');
 const { createWarrantyTicketsRouter } = require('./routes/warranty-tickets');
+const { createAuth } = require('./auth');
+const { createAuthRouter } = require('./routes/auth');
+const { createPartsRepository } = require('./repositories/parts');
+const { createInventoryRepository } = require('./repositories/inventory');
+const { createWarrantyTicketsRepository } = require('./repositories/warranty-tickets');
+const { createPartsService } = require('./services/parts');
+const { createInventoryService } = require('./services/inventory');
 
-function createApp(db) {
+function createApp(db, options = {}) {
   const app = express();
-  app.locals.db = db;
+  const partsRepository = createPartsRepository(db);
+  const inventoryRepository = createInventoryRepository(db);
+  const warrantyTicketsRepository = createWarrantyTicketsRepository(db);
+  const auth = createAuth(options.auth || {
+    username: process.env.AUTH_USERNAME,
+    password: process.env.AUTH_PASSWORD
+  });
   const allowedOrigins = (process.env.FRONTEND_ORIGINS
     || 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5500,http://127.0.0.1:5500')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  app.use(cors({ origin: allowedOrigins }));
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use(express.json());
-  app.use('/api/parts', createPartsRouter());
-  app.use('/api/inventory', createInventoryRouter());
-  app.use('/api/warranty-tickets', createWarrantyTicketsRouter());
+  app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+  app.use('/api/auth', createAuthRouter(auth));
+  app.use('/api/parts', auth.requireAuth, createPartsRouter(createPartsService(partsRepository)));
+  app.use('/api/inventory', auth.requireAuth, createInventoryRouter(createInventoryService(inventoryRepository)));
+  app.use('/api/warranty-tickets', auth.requireAuth, createWarrantyTicketsRouter(warrantyTicketsRepository));
   app.use(express.static(path.resolve(__dirname, '../frontend')));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) {
