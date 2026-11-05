@@ -53,6 +53,8 @@ let server;
 let baseUrl;
 let cookie;
 let fixture;
+let schemaReady = false;
+let fixtureResetStarted = false;
 
 async function resetDb() {
   for (const table of tableResetOrder) {
@@ -139,6 +141,7 @@ integration('MySQL inventory integration', () => {
     for (const statement of schema.split(';').map((item) => item.trim()).filter(Boolean)) {
       await db.query(statement);
     }
+    schemaReady = true;
 
     server = createApp(db, { auth: credentials }).listen(0, '127.0.0.1');
     await new Promise((resolve) => server.once('listening', resolve));
@@ -147,13 +150,14 @@ integration('MySQL inventory integration', () => {
   });
 
   beforeEach(async () => {
+    fixtureResetStarted = true;
     await resetDb();
     fixture = await seed();
   });
 
   afterAll(async () => {
     try {
-      if (db) {
+      if (db && schemaReady && fixtureResetStarted) {
         await resetDb();
       }
     } finally {

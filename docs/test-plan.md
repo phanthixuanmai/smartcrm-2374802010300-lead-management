@@ -40,8 +40,8 @@ vi thành phần hỗ trợ. Cột thực tế chỉ được điền cho lần 
 | TC-07 | API server test và mock Part repo | Gửi `POST /api/parts` thiếu tên | `part_code=PART-005`, thiếu `name` | `400`; body nêu rõ `name is required` | Cao | `npm test`: `400`, lỗi chỉ rõ `name` | PASS |
 | TC-08 | API server test; tồn fixture = 5 | Gửi `POST /api/inventory/1/transactions` | `IN`, `quantity=0` | `400`; lỗi nêu `quantity must be a positive integer` | Cao | `npm test`: `400`, thông báo quantity chính xác | PASS |
 | TC-09 | API server test; tồn fixture = 5; ticket id 1; DB mock ghi nhận câu lệnh | Gửi `POST /api/inventory/1/transactions` | `OUT`, `quantity=6`, `ticketId=1` | `409` và thông báo thiếu tồn; rollback được gọi, không chạy `UPDATE`/`INSERT` | Cao | Lệnh Jest mục tiêu: HTTP `409`, đúng thông báo, rollback 1 lần, chỉ có `SELECT ... FOR UPDATE` | PASS |
-| TC-10 | `TEST_DB_*` riêng; local MySQL; DB tên hậu tố `_test`; test tự reset/seed hai kho và ticket mở | Lọc theo trung tâm, xuất từ dòng kho đã chọn, rồi đọc lại hai dòng và lịch sử | `centerCode=IT-CENTER-A`; OUT 2 gắn ticket mở | Chỉ trả dòng đúng trung tâm; `201`; cập nhật đúng dòng tồn, dòng kho kia không đổi; transaction trỏ đúng inventory/ticket; `low_stock` đúng tại biên `quantity <= min_quantity` | Cao | Skipped/BLOCKED: chưa cấu hình MySQL test riêng trong phiên này | BLOCKED |
-| TC-11 | Cùng schema test riêng; test tự reset/seed tồn = 5 và ticket mở | Ghi nhận số bản ghi, gửi `OUT`, đọc lại tồn và số bản ghi | Xuất 6 | `409`; tồn vẫn 5; không tăng số giao dịch | Cao | Skipped/BLOCKED: chưa cấu hình MySQL test riêng trong phiên này | BLOCKED |
+| TC-10 | `TEST_DB_*` riêng; local MySQL; DB tên hậu tố `_test`; test tự reset/seed hai kho và ticket mở | Lọc theo trung tâm, xuất từ dòng kho đã chọn, rồi đọc lại hai dòng và lịch sử | `centerCode=IT-CENTER-A`; OUT 2 gắn ticket mở | Chỉ trả dòng đúng trung tâm; `201`; cập nhật đúng dòng tồn, dòng kho kia không đổi; transaction trỏ đúng inventory/ticket; `low_stock` đúng tại biên `quantity <= min_quantity` | Cao | BLOCKED: MySQL local 8.4.9 từ chối DDL với `REFERENCES command denied`; chưa gửi request nghiệp vụ | BLOCKED |
+| TC-11 | Cùng schema test riêng; test tự reset/seed tồn = 5 và ticket mở | Ghi nhận số bản ghi, gửi `OUT`, đọc lại tồn và số bản ghi | Xuất 6 | `409`; tồn vẫn 5; không tăng số giao dịch | Cao | BLOCKED: suite dừng ở bước tạo foreign key trong `beforeAll`; assertion MySQL chưa chạy | BLOCKED |
 | TC-12 | Server test hoặc môi trường dev được phép kiểm tra | Thử CORS/error response, tìm kiếm bằng payload SQL/HTML và cookie xác thực thiếu/sửa | Origin không cho phép; `' OR 1=1 --`; `<script>alert(1)</script>`; cookie thiếu/sửa | CORS không phản chiếu origin tùy ý; lỗi không lộ stack/table; payload không làm thay đổi truy vấn hay chạy script; thiếu/sửa cookie trả `401` | Cao | Jest xác nhận payload được bind và cookie sửa trả `401`; kiểm tra CORS/error/UI thủ công chưa chạy | Một phần |
 
 ## 3. Kiểm tra OWASP và phạm vi đăng nhập
@@ -65,8 +65,11 @@ skip do lọc tên). Sau đó chạy `npm test`: **6 suites passed, 1 suite skip
 29 tests passed, 2 MySQL tests skipped**. Runtime validation độc lập đạt
 **2/2 assertions** (frontend HTTP probe và Jest). TC-09 là API test dùng DB
 mock, không phải bằng chứng tích hợp MySQL. TC-10 và TC-11 được triển khai với
-`resetDb()+seed` nhưng đang `BLOCKED` do chưa cấu hình MySQL schema test biệt
-lập. Không
+`resetDb()+seed` trên DB tên riêng `smartcrm_test` tại MySQL local 8.4.9, nhưng
+đang `BLOCKED`: lệnh `CREATE DATABASE` thành công, còn khởi tạo schema thất bại
+do user ứng dụng thiếu quyền `REFERENCES`; không có request nghiệp vụ nào được
+gửi tới test DB. Lệnh `GRANT` đã yêu cầu nhưng `SHOW GRANTS` sau đó vẫn chỉ ra
+rằng quyền chưa được áp dụng. Không
 dùng DB production để thay thế fixture test. Sau mỗi lần chạy, cập nhật cột
 **Kết quả thực tế** và **PASS/FAIL** bằng mã HTTP, nội dung phản hồi, trạng
 thái tồn/bản ghi và tên ảnh `docs/TC-xx.png`; không ghi kết quả dự kiến thành
@@ -74,6 +77,6 @@ thực tế.
 
 Ảnh hiện có luồng UC03 trên MySQL thật tại
 [`e2e-xuat-kho.png`](./e2e-xuat-kho.png); đó là bằng chứng thực hiện trước đây,
-không phải ảnh của lần chạy TC-09 trong phiên này. Ảnh chụp tóm tắt kết quả
-TC-09 và toàn bộ Jest được đính kèm trong phiên; chưa có file `docs/TC-09.png`
-được lưu vào repository.
+không phải ảnh của lần chạy TC-09 trong phiên này. Ảnh chụp kết quả lần chạy
+Jest mục tiêu và tổng suite, kèm trạng thái blocked MySQL, được lưu tại
+[`TC-09.png`](./TC-09.png).

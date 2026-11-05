@@ -110,7 +110,8 @@ chạy khi `TEST_DB_NAME` trỏ tới database local riêng có hậu tố `_tes
 `DB_NAME`, cùng `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` và
 `TEST_DB_PASSWORD` riêng. Tạo database test trước, sau đó chạy
 `npm test -- --runTestsByPath tests/mysql-inventory.test.js`. Nếu chưa cấu hình
-schema test, hai ca này được skip; không chạy trên production hoặc host từ xa.
+schema test, hai ca này được skip; user test cần quyền tạo bảng/foreign key và
+xóa dữ liệu trong schema test. Không chạy trên production hoặc host từ xa.
 
 ## 5. Part API
 
