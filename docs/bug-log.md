@@ -39,3 +39,13 @@
 - **Nguyên nhân:** Service chỉ kiểm tra giá không âm; MySQL `DECIMAL(12,2)` tự làm tròn thêm chữ số.
 - **Cách sửa:** Từ chối giá vượt giới hạn `DECIMAL(12,2)` hoặc có hơn hai chữ số thập phân bằng lỗi validation 400.
 - **Commit và xác nhận:** `fix(parts): reject prices MySQL would round (BUG-03)`; `tests/parts-price-precision.test.js` và `tests/parts.test.js` PASS.
+
+## BUG-04 — MEDIUM — Trường văn bản quá dài trả lỗi máy chủ 500
+
+- **Mã và mức độ:** BUG-04 · MEDIUM — thao tác hợp lệ vẫn dùng được sau khi rút ngắn input; dữ liệu không bị ghi sai nhưng lỗi trả sai phía và thiếu hướng dẫn sửa.
+- **Phát hiện bởi:** POST thử description 501 ký tự trên MySQL test local.
+- **Triệu chứng:** POST part với description dài hơn 500 ký tự trả `500 Internal server error`.
+- **Cách tái lập:** POST `/api/parts` với `description` dài 501 ký tự; cột MySQL có giới hạn `VARCHAR(500)`.
+- **Nguyên nhân:** Service chỉ kiểm tra kiểu dữ liệu, không kiểm tra giới hạn cột trước khi insert.
+- **Cách sửa:** Kiểm tra giới hạn `part_code` 40, `name` 150, `unit` 30 và `description` 500 ký tự trước khi ghi DB.
+- **Commit và xác nhận:** `fix(parts): reject overlong part text fields (BUG-04)`; `tests/parts-text-limits.test.js` và `tests/parts.test.js` PASS.

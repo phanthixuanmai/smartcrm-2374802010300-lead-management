@@ -18,6 +18,13 @@ function validateId(id) {
   }
 }
 
+const TEXT_FIELD_LIMITS = {
+  part_code: 40,
+  name: 150,
+  unit: 30,
+  description: 500
+};
+
 function normalizePart(body) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw new PartError('INVALID_DATA', 'request body must be a JSON object');
@@ -27,10 +34,20 @@ function normalizePart(body) {
     if (typeof body[field] !== 'string' || body[field].trim() === '') {
       throw new PartError('INVALID_DATA', `${field} is required and must be a non-empty string`);
     }
+    if (Array.from(body[field].trim()).length > TEXT_FIELD_LIMITS[field]) {
+      throw new PartError('INVALID_DATA', `${field} must not exceed ${TEXT_FIELD_LIMITS[field]} characters`);
+    }
   }
   if (body.description !== undefined && body.description !== null
     && typeof body.description !== 'string') {
     throw new PartError('INVALID_DATA', 'description must be a string or null');
+  }
+  if (typeof body.description === 'string'
+    && Array.from(body.description).length > TEXT_FIELD_LIMITS.description) {
+    throw new PartError(
+      'INVALID_DATA',
+      `description must not exceed ${TEXT_FIELD_LIMITS.description} characters`
+    );
   }
   if (body.is_active !== undefined && typeof body.is_active !== 'boolean') {
     throw new PartError('INVALID_DATA', 'is_active must be a boolean');
