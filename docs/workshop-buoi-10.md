@@ -29,8 +29,9 @@ peer review và một số ảnh chụp màn hình còn chờ thực hiện.
   trực tiếp trong thư mục pages.
 - Mỗi màn hình có trạng thái đang tải, rỗng và lỗi kèm nút thử lại.
 - Đã kiểm tra giao diện báo lỗi kết nối và cho thử lại khi backend dừng.
-- Client xóa token và điều hướng tới trang đăng nhập khi nhận `401`; đăng nhập
-  thực tế chưa thuộc phạm vi Sprint 2.
+- Client chuyển tới trang đăng nhập khi nhận `401`. Đăng nhập một tài khoản
+  cấu hình được triển khai sau phạm vi Sprint 2; hệ thống hiện chưa có đa tài
+  khoản, vai trò hoặc phân quyền theo chủ sở hữu dữ liệu.
 
 ## Kiểm thử luồng UC03 trên MySQL thật
 

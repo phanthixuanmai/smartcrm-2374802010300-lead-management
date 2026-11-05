@@ -63,6 +63,13 @@ test('requires a valid login before accessing data and supports logout', async (
     headers: { Cookie: sessionCookie }
   });
   expect(expiredSession.status).toBe(401);
+
+  const token = sessionCookie.split('=')[1];
+  const modifiedToken = `${token[0] === '0' ? '1' : '0'}${token.slice(1)}`;
+  const tampered = await fetch(`${baseUrl}/api/parts`, {
+    headers: { Cookie: `smartcrm_session=${modifiedToken}` }
+  });
+  expect(tampered.status).toBe(401);
 });
 
 test('returns a setup error when login credentials are not configured', async () => {

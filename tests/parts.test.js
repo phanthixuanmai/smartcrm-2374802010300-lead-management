@@ -190,6 +190,13 @@ test('PUT /api/parts/:id updates a part and validates input', async () => {
     body: JSON.stringify({ part_code: 'PART-003' })
   });
   assert.equal(invalid.status, 400);
+  const missingName = await request('/api/parts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ part_code: 'PART-005', unit: 'piece' })
+  });
+  assert.equal(missingName.status, 400);
+  assert.match((await missingName.json()).error, /name is required/);
 
   const invalidBody = await request('/api/parts', {
     method: 'POST',

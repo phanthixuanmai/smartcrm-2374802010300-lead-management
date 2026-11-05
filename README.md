@@ -102,6 +102,15 @@ Các bước dựng hệ thống từ đầu:
 Unit/API tests dùng mock database nên không cần MySQL Server; kiểm thử nghiệp vụ
 tồn kho bao gồm xuất kho hợp lệ, xuất đúng bằng tồn, xuất vượt tồn, quantity
 không hợp lệ và OUT thiếu phiếu bảo hành.
+Ma trận 12 ca, trạng thái thực chạy và phạm vi OWASP được ghi trong
+[`docs/test-plan.md`](docs/test-plan.md). Request API để chạy bằng VS Code REST
+Client có tại [`tests/smartcrm-api.http`](tests/smartcrm-api.http). Các ca tích
+hợp MySQL trong `tests/mysql-inventory.test.js` dùng `resetDb()+seed` và chỉ
+chạy khi `TEST_DB_NAME` trỏ tới database local riêng có hậu tố `_test`, khác
+`DB_NAME`, cùng `TEST_DB_HOST`, `TEST_DB_PORT`, `TEST_DB_USER` và
+`TEST_DB_PASSWORD` riêng. Tạo database test trước, sau đó chạy
+`npm test -- --runTestsByPath tests/mysql-inventory.test.js`. Nếu chưa cấu hình
+schema test, hai ca này được skip; không chạy trên production hoặc host từ xa.
 
 ## 5. Part API
 
@@ -237,7 +246,7 @@ Chỉ đánh dấu sau khi hoàn tất và kiểm tra trực tiếp trên máy:
   - [x] Backend tắt: `backend-offline-error.png`
 - [x] Sprint 2 đã kiểm thử với MySQL thật, gồm xuất kho gắn phiếu bảo hành và kiểm tra tồn sau giao dịch
 - [ ] Ảnh kết quả `npm test` đã lưu trong `docs/`
-- [x] Có unit test và test ngoại lệ/biên; `npm test` đạt 26/26
+- [x] Có unit test và test ngoại lệ/biên; Jest đạt 29 PASS; 2 ca MySQL được skip khi chưa cấu hình DB test riêng
 - [x] Giao diện có trạng thái tải, rỗng, lỗi và nút thử lại
 - [x] Đã hoàn thành hướng dẫn dựng hệ thống ở mục 3
 - [x] Clone sạch commit nộp từ GitHub vào thư mục mới; `npm ci` và `npm test` đạt 20/20

@@ -5,17 +5,30 @@ const { InventoryError, createTransactionPlan } = require('../src/backend/servic
 let server;
 let baseUrl;
 let request;
+let executedStatements;
+let rollbackCount;
 
 beforeAll(async () => {
   const connection = {
     async beginTransaction() {},
-    async execute() {
+    async execute(sql) {
+      executedStatements.push(sql);
       return [[{ inventory_id: '1', quantity: 5 }], []];
     },
-    async rollback() {},
+    async rollback() {
+      rollbackCount += 1;
+    },
     release() {}
   };
-  const db = { async getConnection() { return connection; } };
+  const db = {
+    async execute(sql, values) {
+      executedStatements.push({ sql, values });
+      return [[], []];
+    },
+    async getConnection() { return connection; }
+  };
+  executedStatements = [];
+  rollbackCount = 0;
 
   ({ server, baseUrl, request } = await startAuthenticatedServer(db));
 });
@@ -56,6 +69,8 @@ describe('createTransactionPlan', () => {
     });
 
     test('maps insufficient stock to HTTP 409', async () => {
+      executedStatements.length = 0;
+      rollbackCount = 0;
       const response = await request('/api/inventory/1/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,7 +84,23 @@ describe('createTransactionPlan', () => {
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ error: 'Insufficient stock for this withdrawal' });
+      expect(executedStatements).toHaveLength(1);
+      expect(executedStatements[0]).toContain('FOR UPDATE');
+      expect(rollbackCount).toBe(1);
     });
+
+    test.each(["' OR 1=1 --", '<script>alert(1)</script>'])(
+      'keeps search input out of SQL for %s',
+      async (query) => {
+        executedStatements.length = 0;
+        const response = await request(`/api/inventory?q=${encodeURIComponent(query)}`);
+
+        expect(response.status).toBe(200);
+        expect(executedStatements).toHaveLength(1);
+        expect(executedStatements[0].sql).not.toContain(query);
+        expect(executedStatements[0].values).toContain(`%${query}%`);
+      }
+    );
   });
 
   test('allows withdrawing exactly the available stock', () => {

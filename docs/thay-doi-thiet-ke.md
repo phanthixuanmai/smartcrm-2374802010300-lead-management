@@ -163,3 +163,17 @@ hồ sơ nộp; các hạng mục đầu ra chưa thực hiện được ghi rõ
 - **Lý do:** Ưu tiên luồng tồn kho tối thiểu với ba màn hình và bảo đảm giao
   dịch xuất gắn phiếu bảo hành được kiểm tra và ghi nhận nguyên tử. Không đánh
   dấu các kiểm thử hoặc ảnh chưa thực hiện.
+
+## Quyết định đăng nhập và phạm vi OWASP
+
+- **Quyết định:** GIỮ đăng nhập một tài khoản cấu hình qua biến môi trường;
+  chưa bổ sung nhiều người dùng, vai trò hoặc quyền sở hữu dữ liệu theo tài
+  khoản.
+- **Lý do:** API hiện yêu cầu session cookie trước khi truy cập dữ liệu. Kiểm
+  tra A-với-B (A01) chưa áp dụng khi hệ thống không có tài khoản/dữ liệu riêng
+  theo người dùng; A04 chưa áp dụng vì không lưu mật khẩu người dùng trong DB.
+  A07 áp dụng cho session cookie; A02 và A05 vẫn phải kiểm tra dù không có
+  multi-user.
+- **Kiểm chứng:** Ma trận, kết quả đã chạy và các hạng mục OWASP còn chờ được
+  ghi tại [`docs/test-plan.md`](./test-plan.md). Không ghi các kiểm tra thủ
+  công chưa thực hiện thành PASS.

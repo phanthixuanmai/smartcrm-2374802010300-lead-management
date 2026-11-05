@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:3000
+@inventoryId = 1
+@ticketId = 1
+@overStockQuantity = 6
+
+### Login first; REST Client should retain the HttpOnly session cookie.
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{$dotenv AUTH_USERNAME}}",
+  "password": "{{$dotenv AUTH_PASSWORD}}"
+}
+
+### Verify inventory and replace the example ids/stock above with this seed's values.
+GET {{baseUrl}}/api/inventory
+Accept: application/json
+
+### API boundary: invalid quantity must be a 400 input error.
+POST {{baseUrl}}/api/inventory/{{inventoryId}}/transactions
+Content-Type: application/json
+
+{
+  "type": "IN",
+  "quantity": 0,
+  "createdBy": "test-run"
+}
+
+### API boundary: over-stock must be a 409 business conflict.
+# Run only against a disposable test inventory. Expected: 409 and no stock change.
+POST {{baseUrl}}/api/inventory/{{inventoryId}}/transactions
+Content-Type: application/json
+
+{
+  "type": "OUT",
+  "quantity": {{overStockQuantity}},
+  "ticketId": "{{ticketId}}",
+  "createdBy": "test-run"
+}
+
+### Part API: missing field must identify the field in the 400 response.
+POST {{baseUrl}}/api/parts
+Content-Type: application/json
+
+{
+  "part_code": "PART-HTTP-{{$guid}}",
+  "unit": "piece"
+}
+
+### Injection probes: confirm results remain data and no script is rendered/executed.
+GET {{baseUrl}}/api/inventory?q=%27%20OR%201%3D1%20--
+Accept: application/json
+
+###
+GET {{baseUrl}}/api/inventory?q=%3Cscript%3Ealert%281%29%3C%2Fscript%3E
+Accept: application/json
