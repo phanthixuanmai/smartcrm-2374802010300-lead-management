@@ -70,7 +70,8 @@ function createInventoryRepository(db) {
           async hasOpenTicket(ticketId) {
             const [rows] = await connection.execute(
               `SELECT ticket_id FROM warranty_ticket
-               WHERE ticket_id = ? AND status = 'OPEN'`,
+               WHERE ticket_id = ? AND status = 'OPEN'
+               FOR UPDATE`,
               [ticketId]
             );
             return rows.length > 0;

@@ -19,3 +19,13 @@
 - **Nguyên nhân:** Service chỉ truy vấn giao dịch theo ID, không xác minh inventory tồn tại.
 - **Cách sửa:** Xác minh inventory trước khi truy xuất lịch sử; phát lỗi `INVENTORY_NOT_FOUND` để route trả 404.
 - **Commit và xác nhận:** `fix(inventory): return 404 for missing history item (BUG-01)`; `npx jest --runInBand tests/inventory-history-not-found.test.js` PASS.
+
+## BUG-02 — MAJOR — Xuất kho có thể gắn phiếu vừa bị đóng đồng thời
+
+- **Mã và mức độ:** BUG-02 · MAJOR — người dùng vẫn thao tác được nhưng sổ giao dịch có thể vi phạm trạng thái phiếu; không có cách sửa an toàn sau khi giao dịch đã ghi.
+- **Phát hiện bởi:** Test đồng thời MySQL với phiếu được đóng trong lúc xác minh trạng thái xuất.
+- **Triệu chứng:** Request xuất kiểm tra phiếu đang mở, nhưng request khác có thể đóng phiếu trước khi giao dịch xuất commit.
+- **Cách tái lập:** Trong khi transaction xuất đang chạy, cập nhật cùng warranty ticket từ `OPEN` sang `CLOSED` sau lần đọc trạng thái và trước commit.
+- **Nguyên nhân:** `hasOpenTicket` dùng SELECT thường nên không giữ row lock đến khi transaction kết thúc.
+- **Cách sửa:** Dùng `SELECT ... FOR UPDATE` để tuần tự hóa việc xác minh phiếu với cập nhật trạng thái đồng thời.
+- **Commit và xác nhận:** `fix(inventory): lock warranty ticket during withdrawal (BUG-02)`; `tests/inventory-ticket-lock.test.js` xác nhận request đóng bị chặn tới khi xuất commit; MySQL integration 12/12 PASS.
