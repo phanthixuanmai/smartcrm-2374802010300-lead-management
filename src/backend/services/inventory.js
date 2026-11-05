@@ -84,6 +84,9 @@ function createInventoryService(repository) {
 
     async listTransactions(id) {
       validateInventoryId(id);
+      if (!await repository.findById(id)) {
+        throw new InventoryError('INVENTORY_NOT_FOUND', 'Inventory item not found');
+      }
       return repository.listTransactions(id);
     },
 
