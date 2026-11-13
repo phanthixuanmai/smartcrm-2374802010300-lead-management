@@ -203,3 +203,128 @@ Phản hồi về thiếu ảnh là thiếu bằng chứng bàn giao, không ph�
 được tái hiện trong lần chạy hiện tại; không ghi thành bug runtime. Kế hoạch rút
 gọn và báo cáo 12 ca được tách tại [`test-plan.md`](./test-plan.md) và
 [`test-report.md`](./test-report.md).
+
+
+# Các công việc đã hoàn thành trong Bài tập 3
+
+## 1\. Đóng gói và triển khai hệ thống bằng Docker
+
+- Xây dựng và cấu hình Dockerfile cho ứng dụng SmartCRM.
+- Cấu hình docker\-compose.yml để triển khai đồng thời ứng dụng và cơ sở dữ liệu MySQL 8.4.
+- Thiết lập healthcheck cho các container.
+- Kiểm tra khả năng khởi động hệ thống bằng lệnh:
+
+docker compose up \-d \-\-build
+
+- Xác nhận trạng thái hoạt động của các dịch vụ bằng:
+
+docker compose ps
+
+- Kết quả: cả container ứng dụng và cơ sở dữ liệu đều hoạt động ở trạng thái **healthy**.
+
+---
+
+## 2\. Khởi tạo và kiểm tra cơ sở dữ liệu
+
+- Cấu hình kết nối MySQL bằng biến môi trường.
+- Khởi tạo cơ sở dữ liệu SmartCRM bằng script:
+
+docker compose exec app npm run db:init
+
+- Kiểm tra việc import dữ liệu mẫu thành công:
+    - 100 parts
+    - 6 service centers
+    - Dữ liệu giao dịch được xử lý theo quy tắc của hệ thống.
+- Truy cập trực tiếp vào MySQL để kiểm tra dữ liệu và xác nhận các bảng đã được tạo đúng.
+
+---
+
+## 3\. Xây dựng Deployment Guide
+
+Hoàn thành tài liệu triển khai bằng tiếng Anh bao gồm:
+
+- Requirements
+- Setup Steps
+- Environment Variables
+- Sample Data
+- Verify It Works
+
+Deployment Guide cho phép người khác triển khai hệ thống từ một thư mục trống mà không cần hỗ trợ từ tác giả.
+
+---
+
+## 4\. Xây dựng Security Checklist
+
+Hoàn thành Security Checklist gồm 7 kiểm soát bảo mật:
+
+- Quản lý file .env và credentials.
+- Chính sách thay đổi mật khẩu mặc định.
+- HTTPS và Secure Cookie.
+- Authentication cho API.
+- Role\-Based Access Control.
+- Least Privilege Database Account.
+- SQL Injection Prevention bằng Parameterized Query.
+
+Mỗi mục đều có trạng thái và minh chứng cụ thể.
+
+---
+
+## 5\. Hoàn thiện tài liệu kỹ thuật
+
+- API Documentation.
+- Deployment Guide.
+- Security Checklist.
+- Cập nhật đầy đủ tài liệu phục vụ triển khai và kiểm thử hệ thống.
+
+---
+
+## 6\. Thực hiện kiểm thử và xác minh hệ thống
+
+- Thực hiện các bước kiểm tra theo yêu cầu của đề bài.
+- Xác nhận endpoint sức khỏe của hệ thống:
+
+[http://localhost:3000/health](http://localhost:3000/health)
+
+- Nhận được phản hồi:
+
+\{
+
+  "status": "ok"
+
+\}
+
+- Chứng minh hệ thống có thể hoạt động ổn định sau khi đóng gói.
+
+---
+
+## 7\. Quản lý mã nguồn và phát hành phiên bản
+
+- Tạo branch triển khai BT3:
+
+feature/bt3\-docker\-testing
+
+- Commit toàn bộ nội dung BT3.
+- Tạo tag phát hành:
+
+v1.0
+
+- Đẩy source code lên GitHub.
+- Tạo Pull Request và tiến hành merge vào nhánh chính theo quy trình Git chuẩn.
+
+---
+
+## 8\. Chuẩn bị hồ sơ nộp bài
+
+- Hoàn thành các tài liệu theo yêu cầu của đề bài.
+- Chuẩn bị ảnh minh chứng: 
+    - Docker build thành công.
+    - Docker Compose healthy.
+    - Database initialization.
+    - Health check.
+    - Tag v1.0 trên GitHub.
+- Hoàn thiện báo cáo PDF để nộp trên hệ thống VLU E\-learning.
+
+## Kết quả đạt được
+
+Hệ thống SmartCRM đã được đóng gói thành công bằng Docker, có thể triển khai trên môi trường mới bằng số lượng lệnh tối thiểu theo yêu cầu bài tập. Các tài liệu triển khai, tài liệu kỹ thuật, checklist bảo mật và mã nguồn phát hành phiên bản v1.0 đã được hoàn thiện đầy đủ để phục vụ đánh giá và bàn giao hệ thống.
+
