@@ -1,3 +1,10 @@
+tk: admin
+mk: gEfgewazHWORheEuK-JdVPiXw8rH9iIX
+## trên trang deploy trên raiway
+
+
+
+
 # SmartCRM – Quản lý linh kiện
 
 API quản lý danh mục linh kiện thay thế, sử dụng Node.js, Express và MySQL.
