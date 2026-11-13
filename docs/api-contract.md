@@ -1,65 +1,105 @@
-# API Contract – L5 Kho linh kiện thay thế (bản đề xuất)
-Base path: `/api/v1`. JSON UTF-8. Các endpoint là thiết kế đề xuất cho prototype, chưa phải API đang chạy.
+# SmartCRM API Reference
 
-## POST /inventory/{inventoryId}/transactions
-Ghi nhận nhập/xuất kho; ánh xạ US02, US03, US04.
-Request (nhập):
-```json
-{"type":"IN","quantity":5,"createdBy":"tech-01","note":"Nhập bổ sung"}
+This reference lists the implemented HTTP routes only. Base URL defaults to
+`http://localhost:3000`; request and response bodies use JSON. The app has no
+role-based authorization: parts, inventory, and warranty-ticket operations
+require a valid session for the single configured shared account. There is no
+user-specific ownership check.
+
+## Authentication and common responses
+
+`POST /api/auth/login` sets an `HttpOnly`, `SameSite=Lax` cookie named
+`smartcrm_session`; it expires after eight hours and is held in server memory.
+Send the cookie with protected requests. The browser UI handles it automatically.
+In production the cookie also gets `Secure` when `NODE_ENV=production`.
+
+The route catalog contains 18 endpoints: one health endpoint, three
+authentication endpoints, five parts endpoints, four inventory endpoints, and
+five warranty-ticket endpoints.
+
+| HTTP status | Meaning |
+|---|---|
+| `400` | Invalid ID, query, or request data. |
+| `401` | Missing/invalid login session or invalid credentials. |
+| `404` | Requested part, inventory item, or ticket does not exist. |
+| `409` | Duplicate code, referenced record, or insufficient stock. |
+| `500` | Unexpected server/database error. |
+| `503` | Login is not configured on the server. |
+
+Error responses are JSON objects with an `error` string. Part input validation
+also includes a `details` array.
+
+## Implemented endpoint catalog
+
+Each row documents seven contract items: method/path, authentication and role,
+parameters, request body, success status, response contract/example, and error
+statuses. “No body” means the request has no JSON body.
+
+| Method and path | Authentication / role | Parameters | Request body | Success | Response contract / example | Errors |
+|---|---|---|---|---|---|---|
+| `GET /health` | Public; no role | None | No body | `200` | `{"status":"ok"}` | None documented |
+| `POST /api/auth/login` | Public; no role | None | `{"username":"<AUTH_USERNAME>","password":"<AUTH_PASSWORD>"}` | `200` | `{"user":{"username":"admin"}}`; sets session cookie | `401`, `503` |
+| `POST /api/auth/logout` | Public; no role | Existing cookie is cleared if present | No body | `200` | `{"success":true}` | None documented |
+| `GET /api/auth/session` | Public route; requires a valid session for `200` | Session cookie | No body | `200` | `{"user":{"username":"admin"}}` | `401`, `503` |
+| `GET /api/parts` | Session required; shared account | None | No body | `200` | Array of part records: `part_id`, `part_code`, `name`, `unit`, `unit_price`, `description`, `is_active` | `401`, `500` |
+| `GET /api/parts/{id}` | Session required; shared account | Path `id`: positive integer | No body | `200` | One part record with the fields listed above | `400`, `401`, `404`, `500` |
+| `POST /api/parts` | Session required; shared account | None | `{"part_code":"DEMO-PART-002","name":"Demo part","unit":"piece","unit_price":12.5,"description":"Example","is_active":true}`; required: `part_code`, `name`, `unit` | `201` | Newly created part record | `400`, `401`, `409`, `500` |
+| `PUT /api/parts/{id}` | Session required; shared account | Path `id`: positive integer | Full part object; `part_code`, `name`, `unit` required | `200` | Updated part record | `400`, `401`, `404`, `409`, `500` |
+| `DELETE /api/parts/{id}` | Session required; shared account | Path `id`: positive integer | No body | `204` | Empty body | `400`, `401`, `404`, `409`, `500` |
+| `GET /api/inventory` | Session required; shared account | Optional `centerCode`, `q`, `page` (default 1), `pageSize` (default 20, max 100) | No body | `200` | `{"items":[...],"page":1,"pageSize":20}`; item fields include inventory/part/center data, `quantity`, `min_quantity`, and `low_stock` | `400`, `401`, `500` |
+| `GET /api/inventory/{id}` | Session required; shared account | Path `id`: positive integer | No body | `200` | One inventory record with joined part and service-center fields | `400`, `401`, `404`, `500` |
+| `GET /api/inventory/{id}/transactions` | Session required; shared account | Path `id`: positive integer; response is limited to the latest 100 records | No body | `200` | Array of records with `transaction_id`, `transaction_type`, `quantity`, `created_at`, `created_by`, `note`, `ticket_id`, `ticket_code` | `400`, `401`, `404`, `500` |
+| `POST /api/inventory/{id}/transactions` | Session required; shared account | Path `id`: positive integer | `{"type":"OUT","quantity":2,"ticketId":"1","createdBy":"tech-01","note":"Warranty repair"}`; `type` is `IN` or `OUT`; `ticketId` required for `OUT` | `201` | `{"transactionId":"…","inventoryId":"…","type":"OUT","quantity":2,"ticketId":"1","createdBy":"tech-01","newStock":8}` | `400`, `401`, `404`, `409`, `500` |
+| `GET /api/warranty-tickets` | Session required; shared account | Optional `status`: `OPEN`, `CLOSED`, or `CANCELLED` (case-insensitive) | No body | `200` | Array of records with `ticket_id`, `ticket_code`, `status`, `created_at` | `400`, `401`, `500` |
+| `GET /api/warranty-tickets/{id}` | Session required; shared account | Path `id`: positive integer | No body | `200` | One warranty-ticket record | `400`, `401`, `404`, `500` |
+| `POST /api/warranty-tickets` | Session required; shared account | None | `{"ticket_code":"BH-2026-003","status":"OPEN"}`; status defaults to `OPEN` | `201` | Newly created warranty-ticket record | `400`, `401`, `409`, `500` |
+| `PUT /api/warranty-tickets/{id}` | Session required; shared account | Path `id`: positive integer | Full ticket object: `ticket_code`, `status` | `200` | Updated warranty-ticket record | `400`, `401`, `404`, `409`, `500` |
+| `DELETE /api/warranty-tickets/{id}` | Session required; shared account | Path `id`: positive integer | No body | `204` | Empty body | `400`, `401`, `404`, `409`, `500` |
+
+Part fields have limits of 40 characters for `part_code`, 150 for `name`, 30
+for `unit`, and 500 for `description`. `unit_price` must be non-negative with
+at most two decimal places. Inventory transaction quantity must be a positive
+integer; `createdBy` is required. An `OUT` transaction is atomic with the stock
+update, requires an open warranty ticket, and returns `409` if stock is
+insufficient. Warranty ticket status is one of `OPEN`, `CLOSED`, or
+`CANCELLED`.
+
+## Executed request/response evidence
+
+The examples below are taken from the MySQL-backed run documented in
+[`test-report.md`](./test-report.md), not from an unimplemented API proposal.
+
+TC-01 created a part with this request:
+
+```http
+POST /api/parts
+Content-Type: application/json
+
+{"part_code":"BT2-PART-VALID","name":"BT2 integration part","unit":"piece","unit_price":12345}
 ```
-Request (xuất):
-```json
-{"type":"OUT","quantity":2,"ticketId":123,"createdBy":"tech-01","note":"Dùng cho phiếu bảo hành"}
+
+Observed result: HTTP `201`; response part code and name matched the request,
+and the row was read back from MySQL with matching persisted values.
+
+TC-04 attempted to withdraw one more unit than available:
+
+```http
+POST /api/inventory/{fixture.inventoryA}/transactions
+Content-Type: application/json
+
+{"type":"OUT","quantity":6,"ticketId":"<open-ticket-id>","createdBy":"integration-test"}
 ```
-Validation: `inventoryId` phải tồn tại; `type` thuộc `IN|OUT`; `quantity` là số nguyên > 0; `createdBy` không rỗng; với `OUT`, `ticketId` bắt buộc và phải tồn tại; tồn khả dụng phải ≥ quantity. Ghi transaction + cập nhật tồn trong cùng transaction CSDL.
-Responses: `201` thành công; `400` dữ liệu sai; `401` chưa xác thực; `403` không đủ quyền; `404` không tìm thấy inventory/ticket; `409` không đủ tồn kho.
 
-## GET /inventory
-Tra cứu tồn kho; US01. Query: `centerCode`, `q`, `page` (mặc định 1), `pageSize` (mặc định 20, tối đa 100). Response `200`: `items[]` gồm `inventoryId`, `partCode`, `name`, `unit`, `quantity`, `minQuantity`, `lowStock`; `400` query không hợp lệ.
+Observed response:
 
-## PATCH /inventory/{inventoryId}/threshold
-Thiết lập ngưỡng tồn; US05. Chỉ Quản lý trung tâm. Request: `{"minQuantity":10}`. `minQuantity` là số nguyên ≥ 0. Response `200`; `400`, `401`, `403`, `404`.
+```http
+HTTP/1.1 409 Conflict
+Content-Type: application/json
 
-## GET /inventory/{inventoryId}/transactions
-Lịch sử giao dịch; US07. Query: `from`, `to`, `type`, `page`, `pageSize`. Response `200` với `items[]` gồm `transactionId`, `type`, `quantity`, `createdAt`, `createdBy`, `ticketCode`; lỗi `400` nếu khoảng ngày không hợp lệ.
-
-## Truy vết
-- `POST .../transactions` → FR2/FR3/FR4 → US02/US03/US04 → UC02/UC03.
-- `GET /inventory` → FR1 → US01 → UC01.
-- `PATCH .../threshold` → FR5 → US05 → UC04.
-- Cảnh báo tồn thấp được tạo sau cập nhật giao dịch/thiết lập ngưỡng khi `quantity < minQuantity` → FR6 → US06 → UC05.
-- `GET .../transactions` → FR7 → US07 → UC06.
-- `PATCH /parts/{partId}` (đề xuất tương tự) → FR8 → US08 → UC07.
-
-## API danh mục linh kiện (đã triển khai)
-Base path: `/api/parts`. Các trường JSON dùng tên cột `part_id`, `part_code`,
-`name`, `unit`, `description` và `is_active`.
-Persistence sử dụng MySQL 8+, InnoDB và placeholder tham số `?`.
-
-| Method | Endpoint | Thành công | Lỗi chính |
-|---|---|---|---|
-| GET | `/api/parts` | `200` với danh sách linh kiện (bao gồm `PART-001`–`PART-003` sau seed) | `500` lỗi máy chủ |
-| GET | `/api/parts/{id}` | `200` với một linh kiện | `400` id sai định dạng; `404` không tồn tại |
-| POST | `/api/parts` | `201` với linh kiện vừa tạo | `400` body sai; `409` trùng `part_code` |
-| PUT | `/api/parts/{id}` | `200` với linh kiện cập nhật | `400` dữ liệu/id sai; `404` không tồn tại; `409` trùng mã |
-| DELETE | `/api/parts/{id}` | `204` không có response body | `400` id sai; `404` không tồn tại; `409` đang được tham chiếu |
-
-Body POST/PUT cần có `part_code`, `name`, `unit`; `description` và `is_active`
-là tùy chọn. `part_code`, `name`, `unit` phải là chuỗi không rỗng.
-
-## API phiếu bảo hành (đã triển khai)
-Base path: `/api/warranty-tickets`. Trạng thái hợp lệ: `OPEN`, `CLOSED`,
-`CANCELLED`. `status` trong query GET không phân biệt chữ hoa/thường.
-
-| Method | Endpoint | Thành công | Lỗi chính |
-|---|---|---|---|
-| GET | `/api/warranty-tickets?status=OPEN` | `200` với danh sách phiếu; bỏ `status` để lấy tất cả | `400` trạng thái sai |
-| GET | `/api/warranty-tickets/{id}` | `200` với một phiếu | `400` id sai định dạng; `404` không tồn tại |
-| POST | `/api/warranty-tickets` | `201`; `status` mặc định `OPEN` | `400` dữ liệu/trạng thái sai; `409` trùng mã |
-| PUT | `/api/warranty-tickets/{id}` | `200` với phiếu cập nhật | `400` id/dữ liệu sai; `404` không tồn tại; `409` trùng mã |
-| DELETE | `/api/warranty-tickets/{id}` | `204` không có response body | `400` id sai; `404` không tồn tại; `409` đang được giao dịch kho tham chiếu |
-
-Body POST/PUT:
-```json
-{"ticket_code":"BH-2026-003","status":"OPEN"}
+{"error":"Insufficient stock for this withdrawal"}
 ```
+
+The same test verified stock remained 5 and the transaction row count did not
+change. TC-10 in the report records `401` for an unauthenticated protected
+request. `403` is not applicable because this app has no roles or per-user
+ownership model.

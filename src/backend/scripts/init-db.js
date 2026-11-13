@@ -42,6 +42,13 @@ async function initializeDatabase() {
       await pool.query('ALTER TABLE part ADD COLUMN unit_price DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER unit');
     }
 
+    const seedPath = path.resolve(__dirname, '../../../db/init/01-seed.sql');
+    const seed = await fs.readFile(seedPath, 'utf8');
+    const seedStatements = seed.split(';').map((statement) => statement.trim()).filter(Boolean);
+    for (const statement of seedStatements) {
+      await pool.query(statement);
+    }
+
     await pool.query(
       `ALTER TABLE inventory
        MODIFY COLUMN min_quantity INTEGER NOT NULL DEFAULT ${MIN_INVENTORY_QUANTITY}

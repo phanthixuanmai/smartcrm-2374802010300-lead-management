@@ -2,6 +2,28 @@
 
 API quản lý danh mục linh kiện thay thế, sử dụng Node.js, Express và MySQL.
 
+## Chạy bằng Docker (2 lệnh)
+
+Từ thư mục gốc, tạo cấu hình local và khởi động cả API lẫn MySQL:
+
+```sh
+cp .env.example .env
+docker compose up -d --build
+```
+
+Chỉ dùng mật khẩu mẫu cho máy local; thay `DB_PASSWORD`, `DB_ROOT_PASSWORD`
+và `AUTH_PASSWORD` trước khi chia sẻ máy hoặc triển khai. Cấu hình chi tiết,
+seed mẫu và checklist bảo mật nằm trong
+[Deployment Guide](docs/deployment-guide.md).
+
+Xác minh trạng thái và chạy bộ test:
+
+```sh
+docker compose ps
+curl -s http://localhost:${APP_PORT:-3000}/health
+docker compose exec app npm test
+```
+
 ## 1. Yêu cầu
 
 - Node.js 18 trở lên và npm.

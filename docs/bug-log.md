@@ -8,7 +8,7 @@
 - **Cách tái lập:** Gọi `createTransactionPlan` với lượng xuất vượt tồn hoặc thiếu phiếu; lỗi domain trực tiếp chứa status HTTP.
 - **Nguyên nhân:** `InventoryError` lưu `statusCode` thay vì mã lỗi nghiệp vụ.
 - **Cách sửa:** Chuyển service sang error code nghiệp vụ và ánh xạ sang HTTP ở route.
-- **Commit và xác nhận:** Đã sửa trong commit `26322d0`; unit/API tests xác nhận mapping 400/404/409.
+- **Commit và xác nhận:** Đã sửa trong [commit `26322d0`](https://github.com/phanthixuanmai/smartcrm-2374802010300-lead-management/commit/26322d0); unit/API tests xác nhận mapping 400/404/409.
 
 ## BUG-01 — MEDIUM — Lịch sử giao dịch của inventory không tồn tại trả danh sách rỗng
 
@@ -18,7 +18,7 @@
 - **Cách tái lập:** GET `/api/inventory/999999999/transactions` với phiên đăng nhập hợp lệ.
 - **Nguyên nhân:** Service chỉ truy vấn giao dịch theo ID, không xác minh inventory tồn tại.
 - **Cách sửa:** Xác minh inventory trước khi truy xuất lịch sử; phát lỗi `INVENTORY_NOT_FOUND` để route trả 404.
-- **Commit và xác nhận:** `fix(inventory): return 404 for missing history item (BUG-01)`; `npx jest --runInBand tests/inventory-history-not-found.test.js` PASS.
+- **Commit và xác nhận:** [Commit sửa BUG-01](https://github.com/phanthixuanmai/smartcrm-2374802010300-lead-management/commit/8f99194); `npx jest --runInBand tests/inventory-history-not-found.test.js` PASS.
 
 ## BUG-02 — MAJOR — Xuất kho có thể gắn phiếu vừa bị đóng đồng thời
 
@@ -28,7 +28,7 @@
 - **Cách tái lập:** Trong khi transaction xuất đang chạy, cập nhật cùng warranty ticket từ `OPEN` sang `CLOSED` sau lần đọc trạng thái và trước commit.
 - **Nguyên nhân:** `hasOpenTicket` dùng SELECT thường nên không giữ row lock đến khi transaction kết thúc.
 - **Cách sửa:** Dùng `SELECT ... FOR UPDATE` để tuần tự hóa việc xác minh phiếu với cập nhật trạng thái đồng thời.
-- **Commit và xác nhận:** `fix(inventory): lock warranty ticket during withdrawal (BUG-02)`; `tests/inventory-ticket-lock.test.js` xác nhận request đóng bị chặn tới khi xuất commit; MySQL integration 12/12 PASS.
+- **Commit và xác nhận:** [Commit sửa BUG-02](https://github.com/phanthixuanmai/smartcrm-2374802010300-lead-management/commit/bd0e154); `tests/inventory-ticket-lock.test.js` xác nhận request đóng bị chặn tới khi xuất commit; MySQL integration 12/12 PASS.
 
 ## BUG-03 — MEDIUM — Giá linh kiện nhiều hơn hai chữ số thập phân bị làm tròn âm thầm
 
@@ -38,7 +38,7 @@
 - **Cách tái lập:** POST `/api/parts` với giá `1.239`, sau đó SELECT `unit_price` theo `part_code`.
 - **Nguyên nhân:** Service chỉ kiểm tra giá không âm; MySQL `DECIMAL(12,2)` tự làm tròn thêm chữ số.
 - **Cách sửa:** Từ chối giá vượt giới hạn `DECIMAL(12,2)` hoặc có hơn hai chữ số thập phân bằng lỗi validation 400.
-- **Commit và xác nhận:** `fix(parts): reject prices MySQL would round (BUG-03)`; `tests/parts-price-precision.test.js` và `tests/parts.test.js` PASS.
+- **Commit và xác nhận:** [Commit sửa BUG-03](https://github.com/phanthixuanmai/smartcrm-2374802010300-lead-management/commit/b9ee15b); `tests/parts-price-precision.test.js` và `tests/parts.test.js` PASS.
 
 ## BUG-04 — MEDIUM — Trường văn bản quá dài trả lỗi máy chủ 500
 
@@ -48,4 +48,4 @@
 - **Cách tái lập:** POST `/api/parts` với `description` dài 501 ký tự; cột MySQL có giới hạn `VARCHAR(500)`.
 - **Nguyên nhân:** Service chỉ kiểm tra kiểu dữ liệu, không kiểm tra giới hạn cột trước khi insert.
 - **Cách sửa:** Kiểm tra giới hạn `part_code` 40, `name` 150, `unit` 30 và `description` 500 ký tự trước khi ghi DB.
-- **Commit và xác nhận:** `fix(parts): reject overlong part text fields (BUG-04)`; `tests/parts-text-limits.test.js` và `tests/parts.test.js` PASS.
+- **Commit và xác nhận:** [Commit sửa BUG-04](https://github.com/phanthixuanmai/smartcrm-2374802010300-lead-management/commit/3250157); `tests/parts-text-limits.test.js` và `tests/parts.test.js` PASS.
